@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import FamilyFeudLogo from "/family-feud-logo.png";
+import { Link } from "react-router-dom";
 
 interface TeamSetupProps {
   onEnterGame: (team1Name: string, team2Name: string) => void;
@@ -88,10 +89,16 @@ export const TeamSetup = ({ onEnterGame, onHostControls }: TeamSetupProps) => {
             </div>
           </form>
 
-          <div className="text-center text-muted-foreground">
-            <Button className="text-lg" onClick={handleHost}>
+          <div className="text-center text-muted-foreground space-x-3">
+            <Button className="text-lg" variant="strike" onClick={handleHost}>
               Host
             </Button>
+
+            <Link to="/add-question">
+              <Button className="text-lg" variant="game">
+                Add New Question
+              </Button>
+            </Link>
           </div>
         </div>
       </Card>

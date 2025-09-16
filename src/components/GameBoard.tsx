@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { XIcon } from "lucide-react";
+import { supabase } from "@/services/supabase";
 
 interface Answer {
   text: string;
@@ -27,8 +29,52 @@ export const GameBoard = ({
   teamScores,
   strikes,
   isHost = false,
-  isGameBegin,
 }: GameBoardProps) => {
+  const [isGameBegin, setIsGameBegin] = useState(false);
+
+  useEffect(() => {
+    // 1️⃣ Fetch the initial value of is_game_begin
+    const fetchInitialValue = async () => {
+      const { data, error } = await supabase
+        .from("settings")
+        .select("is_game_begin")
+        .eq("id", 1)
+        .single();
+
+      if (!error && data) {
+        setIsGameBegin(data.is_game_begin);
+      }
+    };
+
+    fetchInitialValue();
+
+    // 2️⃣ Subscribe to changes in the settings table
+    const channel = supabase
+      .channel("settings-changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "settings",
+        },
+        (payload) => {
+          console.log("payload", payload.new);
+          if (payload.new) {
+            setIsGameBegin(payload.new.is_game_begin);
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log("Channel status:", status);
+      });
+
+    // 3️⃣ Cleanup subscription on unmount
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
   const handleEndGame = (e: React.FormEvent) => {
     e.preventDefault();
     const resetAnswers = answers.map((answer) => ({
@@ -78,7 +124,7 @@ export const GameBoard = ({
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 ">
-              {answers.map((answer, index) => (
+              {(Array.isArray(answers) ? answers : []).map((answer, index) => (
                 <AnswerSlot
                   key={index}
                   number={index + 1}
@@ -124,12 +170,15 @@ export const GameBoard = ({
               {[...Array(3)].map((_, i) => (
                 <div
                   key={i}
-                  className={`w-8 h-8 rounded-full border-4 ${
-                    i < strikes
-                      ? "bg-strike-red border-strike-red shadow-glow-answer"
-                      : "border-gold-border"
-                  }`}
-                />
+                  className="w-10 h-10 rounded-full border-4 border-gold-border"
+                >
+                  {i < strikes && (
+                    <XIcon
+                      className="text-red-600 w-8 h-8 reveal-animation"
+                      strokeWidth={5}
+                    />
+                  )}
+                </div>
               ))}
             </div>
           </div>

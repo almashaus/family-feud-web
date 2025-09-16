@@ -1,37 +1,71 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { GameBoard } from "./GameBoard";
 import { HostControls } from "./HostControls";
 import { TeamSetup } from "./TeamSetup";
-import { gameQuestions, type GameQuestion } from "@/data/questions";
+import { type GameQuestion } from "@/data/questions";
+import { useQuestionsStore } from "@/lib/stores/questionsStore";
+import { updateData } from "@/services/supabaseFunctions";
 
 interface GameState {
   currentQuestionIndex: number;
   currentQuestion: GameQuestion;
   teamScores: { team1: number; team2: number };
   strikes: number;
-  gameStarted: boolean;
+  gameEntered: boolean;
   isHost: boolean;
   isGameBegin: boolean;
   teams: { team1: string; team2: string };
   currentRound: number;
 }
 
-export const FamilyFeudGame = () => {
-  const [gameState, setGameState] = useState<GameState>({
+export const FamilyFeudGame = ({
+  gameQuestions,
+  gameStarted,
+}: {
+  gameQuestions: GameQuestion[];
+  gameStarted: boolean;
+}) => {
+  // Only show loading if questions are not loaded yet
+  if (!gameQuestions || gameQuestions.length === 0) {
+    return <div>Loading game...</div>;
+  }
+
+  // Initialize gameState with default values based on loaded questions
+  const [gameState, setGameState] = useState<GameState>(() => ({
     currentQuestionIndex: 0,
     currentQuestion: { ...gameQuestions[0] },
     teamScores: { team1: 0, team2: 0 },
     strikes: 0,
-    gameStarted: false,
+    gameEntered: false,
     isHost: false,
-    isGameBegin: false,
+    isGameBegin: gameStarted,
     teams: { team1: "Team 1", team2: "Team 2" },
     currentRound: 1,
-  });
+  }));
+
+  // Sync gameState.currentQuestion if gameQuestions change (e.g., after SWR fetch)
+  useEffect(() => {
+    setGameState((prev) => ({
+      ...prev,
+      currentQuestion: { ...gameQuestions[prev.currentQuestionIndex] },
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameQuestions]);
 
   const handleRevealAnswer = useCallback(
-    (answerIndex: number) => {
+    async (answerIndex: number) => {
       if (!gameState.isHost) return;
+
+      const answer = gameState.currentQuestion.answers[answerIndex];
+      const questionId = gameState.currentQuestion.id;
+
+      // Update by question_id and text for uniqueness
+      const isUpdated = await updateData(
+        "answers",
+        { revealed: true },
+        ["question_id", "text"],
+        [questionId, answer.text]
+      );
 
       setGameState((prev) => {
         const newQuestion = { ...prev.currentQuestion };
@@ -39,29 +73,33 @@ export const FamilyFeudGame = () => {
 
         if (answer && !answer.revealed) {
           answer.revealed = true;
-
-          // Add points to team1 for demo (in real game, this would be determined by gameplay)
           const newTeamScores = { ...prev.teamScores };
           newTeamScores.team1 += answer.points;
-
           return {
             ...prev,
             currentQuestion: newQuestion,
             teamScores: newTeamScores,
           };
         }
-
         return prev;
       });
     },
-    [gameState.isHost]
+    [gameState.isHost, gameState.currentQuestion]
   );
 
-  const handleGameBegin = useCallback(() => {
-    setGameState((prev) => ({
-      ...prev,
-      isGameBegin: true,
-    }));
+  const handleGameBegin = useCallback(async () => {
+    const isUpdated = await updateData(
+      "settings",
+      { is_game_begin: true },
+      "id",
+      1
+    );
+    if (isUpdated) {
+      setGameState((prev) => ({
+        ...prev,
+        isGameBegin: true,
+      }));
+    }
   }, []);
 
   const handleAddStrike = useCallback(() => {
@@ -107,7 +145,7 @@ export const FamilyFeudGame = () => {
     (team1Name: string, team2Name: string) => {
       setGameState((prev) => ({
         ...prev,
-        gameStarted: true,
+        gameEntered: true,
         teams: { team1: team1Name, team2: team2Name },
       }));
     },
@@ -121,13 +159,20 @@ export const FamilyFeudGame = () => {
     }));
   }, []);
 
-  const handleEndGame = useCallback((isHost: boolean) => {
+  const handleEndGame = useCallback(async (isHost: boolean) => {
     // Reset all answers in gameQuestions
-    gameQuestions.forEach((question) => {
-      question.answers.forEach((answer) => {
-        answer.revealed = false;
-      });
-    });
+    // gameQuestions.forEach((question) => {
+    //   question.answers.forEach((answer) => {
+    //     answer.revealed = false;
+    //   });
+    // });
+
+    const isUpdated = await updateData(
+      "settings",
+      { is_game_begin: false },
+      "id",
+      1
+    );
 
     setGameState((prev) => ({
       ...prev,
@@ -135,7 +180,7 @@ export const FamilyFeudGame = () => {
       currentQuestion: { ...gameQuestions[0] },
       teamScores: { team1: 0, team2: 0 },
       strikes: 0,
-      gameStarted: false,
+      gameEntered: false,
       isHost: false,
       isGameBegin: false,
       teams: { team1: "Team 1", team2: "Team 2" },
@@ -143,7 +188,7 @@ export const FamilyFeudGame = () => {
     }));
   }, []);
 
-  if (gameState.isHost && gameState.gameStarted) {
+  if (gameState.isHost && gameState.gameEntered) {
     return (
       <div className="min-h-screen bg-gradient-bg sparkle-bg p-4">
         <div className="p-2 space-y-4 rounded-lg border-4 border-red-500 pb-6">
@@ -173,7 +218,7 @@ export const FamilyFeudGame = () => {
     );
   }
 
-  if (!gameState.gameStarted) {
+  if (!gameState.gameEntered) {
     return (
       <TeamSetup
         onEnterGame={handleEnterGame}

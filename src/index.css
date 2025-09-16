@@ -152,19 +152,19 @@
   body {
     @apply bg-background text-foreground;
     background: var(--gradient-bg);
-    font-family: "Oswald", sans-serif;
+    font-family: "Cairo";
     overflow-x: hidden;
   }
 
   h1,
   h2,
   h3 {
-    font-family: "Oswald", monospace;
+    font-family: "Cairo";
     font-weight: 700;
   }
 
   .game-board-font {
-    font-family: "Oswald", monospace;
+    font-family: "Cairo";
     font-weight: 900;
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
   }
