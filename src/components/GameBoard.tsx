@@ -12,48 +12,53 @@ interface GameBoardProps {
   question: string;
   answers: Answer[];
   onRevealAnswer: (index: number) => void;
+  onEndGame: (gameStarted: boolean, answer: Answer[]) => void;
   teamScores: { team1: number; team2: number };
   strikes: number;
   isHost?: boolean;
+  isGameBegin: boolean;
 }
 
 export const GameBoard = ({
   question,
   answers,
   onRevealAnswer,
+  onEndGame,
   teamScores,
   strikes,
   isHost = false,
+  isGameBegin,
 }: GameBoardProps) => {
+  const handleEndGame = (e: React.FormEvent) => {
+    e.preventDefault();
+    const resetAnswers = answers.map((answer) => ({
+      ...answer,
+      revealed: false,
+    }));
+    // If you need to use resetAnswers, pass it to a handler or set state here.
+    onEndGame(false, resetAnswers);
+  };
+
   return (
-    <div className="flex flex-col items-center gap-8 p-6">
+    <div className="flex flex-col items-center gap-8 p-2 md:p-6">
+      {isHost && (
+        <div className="bg-red-500 px-8 py-4 rounded-lg">
+          <h3 className="text-white game-board-font text-lg">Host</h3>
+        </div>
+      )}
+
       {/* Question Display */}
-      <Card className="bg-gradient-primary border-gold-border border-4 p-8 shadow-board">
-        <h2 className="game-board-font text-4xl md:text-6xl text-center text-primary-foreground">
-          {question}
-        </h2>
-      </Card>
+      {isGameBegin && (
+        <Card className="bg-gradient-primary border-gold-border border-4 p-8 shadow-board">
+          <h2 className="game-board-font text-3xl lg:text-5xl text-center text-primary-foreground">
+            {question}
+          </h2>
+        </Card>
+      )}
 
       {/* Answer Board */}
-      <div className="">
-        <div className="bg-gradient-board border-gold-border border-8 rounded-3xl p-8 shadow-board sparkle-bg w-[700px]">
-          <div className="grid grid-cols-2 gap-6 max-w-4xl">
-            {answers.map((answer, index) => (
-              <AnswerSlot
-                key={index}
-                number={index + 1}
-                answer={answer}
-                onReveal={() => onRevealAnswer(index)}
-                isHost={isHost}
-              />
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Score and Strikes Display */}
-      <div className="flex justify-between items-center w-full max-w-4xl">
-        <Card className="bg-gradient-gold border-primary border-4 p-6 shadow-gold">
+      <div className="flex justify-between items-center gap-5">
+        <Card className="bg-gradient-gold border-primary border-4 p-6 shadow-gold hidden lg:flex">
           <div className="text-center">
             <h3 className="game-board-font text-2xl text-secondary-foreground">
               TEAM 1
@@ -64,7 +69,53 @@ export const GameBoard = ({
           </div>
         </Card>
 
-        <Card className="bg-gradient-primary border-gold-border border-4 p-6">
+        <div className="bg-gradient-board border-gold-border border-8 rounded-3xl p-3 md:p-8 shadow-board ">
+          {!isGameBegin ? (
+            <div className="flex justify-center text-center">
+              <span className="text-3xl">
+                Waiting For Host To Start The Game...
+              </span>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 ">
+              {answers.map((answer, index) => (
+                <AnswerSlot
+                  key={index}
+                  number={index + 1}
+                  answer={answer}
+                  onReveal={() => onRevealAnswer(index)}
+                  isHost={isHost}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        <Card className="bg-gradient-gold border-primary border-4 p-6 shadow-gold hidden lg:flex">
+          <div className="text-center">
+            <h3 className="game-board-font text-2xl text-secondary-foreground">
+              TEAM 2
+            </h3>
+            <p className="game-board-font text-4xl text-secondary-foreground">
+              {teamScores.team2}
+            </p>
+          </div>
+        </Card>
+      </div>
+
+      {/* Score and Strikes Display */}
+      <div className="flex justify-between lg:justify-center items-center w-full max-w-4xl">
+        <Card className="bg-gradient-gold border-primary border-4 p-2 md:p-6 shadow-gold lg:hidden flex">
+          <div className="text-center">
+            <h3 className="game-board-font text-2xl text-secondary-foreground">
+              TEAM 1
+            </h3>
+            <p className="game-board-font text-4xl text-secondary-foreground">
+              {teamScores.team1}
+            </p>
+          </div>
+        </Card>
+        <Card className="bg-gradient-primary border-gold-border border-4 p-2 md:p-6">
           <div className="text-center">
             <h3 className="game-board-font text-xl text-primary-foreground">
               STRIKES
@@ -84,7 +135,7 @@ export const GameBoard = ({
           </div>
         </Card>
 
-        <Card className="bg-gradient-gold border-primary border-4 p-6 shadow-gold">
+        <Card className="bg-gradient-gold border-primary border-4 p-2 md:p-6 shadow-gold lg:hidden flex">
           <div className="text-center">
             <h3 className="game-board-font text-2xl text-secondary-foreground">
               TEAM 2
@@ -94,6 +145,11 @@ export const GameBoard = ({
             </p>
           </div>
         </Card>
+      </div>
+      <div className="">
+        <Button variant="strike" onClick={handleEndGame}>
+          End Game
+        </Button>
       </div>
     </div>
   );
@@ -110,11 +166,11 @@ const AnswerSlot = ({ number, answer, onReveal, isHost }: AnswerSlotProps) => {
   return (
     <div
       className={`
-        relative h-20 border-4 border-primary-foreground rounded-xl overflow-hidden
+        relative h-20 w-72 md:w-80 border-4 border-primary-foreground rounded-xl overflow-hidden
         ${
           answer.revealed
-            ? "bg-gradient-answer shadow-glow-answer"
-            : "bg-answer-slot"
+            ? "bg-gradient-primary shadow-glow-answer"
+            : "bg-gradient-answer"
         }
         ${
           isHost && !answer.revealed
@@ -126,12 +182,20 @@ const AnswerSlot = ({ number, answer, onReveal, isHost }: AnswerSlotProps) => {
     >
       {answer.revealed ? (
         <div className="flex items-center justify-between h-full px-6 reveal-animation">
-          <span className="game-board-font text-2xl text-primary-foreground uppercase">
+          <span className="game-board-font text-lg lg:text-2xl text-primary-foreground uppercase">
             {answer.text}
           </span>
-          <div className="bg-gold-border text-secondary-foreground rounded-full w-12 h-12 flex items-center justify-center">
-            <span className="game-board-font text-xl">{answer.points}</span>
+          <div className="bg-gold-border text-secondary-foreground rounded-full w-12 h-12 flex items-center justify-center ms-2">
+            <span className="game-board-font text-md lg:text-xl">
+              {answer.points}
+            </span>
           </div>
+        </div>
+      ) : isHost ? (
+        <div className="flex items-center justify-center h-full">
+          <span className="game-board-font text-lg lg:text-2xl">
+            {answer.text}
+          </span>
         </div>
       ) : (
         <div className="flex items-center justify-center h-full">

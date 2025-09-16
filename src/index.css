@@ -52,14 +52,14 @@
 
     /* Gradients */
     --gradient-primary: linear-gradient(
-      135deg,
+      180deg,
       hsl(220, 80%, 45%),
       hsl(200, 80%, 50%)
     );
     --gradient-gold: linear-gradient(
-      135deg,
-      hsl(45, 95%, 55%),
-      hsl(35, 95%, 65%)
+      180deg,
+      hsl(22, 98%, 60%),
+      hsl(45, 95%, 55%)
     );
     --gradient-board: linear-gradient(
       180deg,
@@ -67,14 +67,14 @@
       hsl(220, 70%, 15%)
     );
     --gradient-answer: linear-gradient(
-      135deg,
-      hsl(200, 70%, 40%),
-      hsl(200, 80%, 50%)
+      180deg,
+      hsl(211, 27%, 36%),
+      hsl(200, 32%, 55%)
     );
     --gradient-bg: radial-gradient(
       circle at 50% 50%,
       hsl(220, 25%, 15%),
-      hsl(220, 25%, 8%)
+      hsl(219, 53%, 12%)
     );
 
     /* Shadows & Effects */
@@ -190,8 +190,7 @@
         hsl(200, 100%, 80%, 0.1) 1px,
         transparent 1px
       );
-    background-size: 100px 100px, 150px 150px, 120px 120px, 80px 80px;
-    animation: sparkle 3s infinite ease-in-out;
+    background-size: 30px 30px, 60px 60px, 40px 40px, 20px 20px;
   }
 
   @keyframes sparkle {
@@ -235,5 +234,36 @@
 
   .pulse-glow {
     animation: pulse-glow 2s infinite;
+  }
+
+  .grid-dot {
+    display: grid;
+    grid-template-columns: repeat(20, 40px); /* number of columns */
+    grid-template-rows: repeat(8, 40px); /* number of rows */
+    gap: 0;
+  }
+
+  .dot {
+    width: 15px;
+    height: 15px;
+    background: radial-gradient(
+      circle,
+      #ffcc33 30%,
+      #ff9900 70%,
+      transparent 100%
+    );
+    border-radius: 50%;
+    box-shadow: 0 0 10px #ff9900, 0 0 20px #ff8800, 0 0 40px #ff7700;
+    margin: auto;
+  }
+
+  /* Remove last column connector */
+  .dot:nth-child(10n)::before {
+    display: none;
+  }
+
+  /* Remove last row connector */
+  .dot:nth-child(n + 31)::after {
+    display: none;
   }
 }
