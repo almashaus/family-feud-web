@@ -3,7 +3,10 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import FamilyFeudLogo from "/family-feud-logo.png";
+import FamilyFeudLogo from "/images/FF-logo.png";
+import BonaLogo from "/images/BB-logo.png";
+import LevelUpLogo from "/images/LVLUP-logo.png";
+import Pattern from "/images/FF-pattern.png";
 import { Link } from "react-router-dom";
 
 interface TeamSetupProps {
@@ -12,13 +15,14 @@ interface TeamSetupProps {
 }
 
 export const TeamSetup = ({ onEnterGame, onHostControls }: TeamSetupProps) => {
-  const [team1Name, setTeam1Name] = useState("The Lightning Bolts");
-  const [team2Name, setTeam2Name] = useState("The Thunder Hawks");
+  const [team1Name, setTeam1Name] = useState("Heroes");
+  const [team2Name, setTeam2Name] = useState("Champions");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (team1Name.trim() && team2Name.trim()) {
       onEnterGame(team1Name.trim(), team2Name.trim());
+      onHostControls(true);
     }
   };
 
@@ -30,18 +34,40 @@ export const TeamSetup = ({ onEnterGame, onHostControls }: TeamSetupProps) => {
 
   return (
     <div className="min-h-screen bg-gradient-bg sparkle-bg flex items-center justify-center p-4">
-      <Card className="bg-gradient-board border-gold-border border-8 p-12 shadow-board max-w-2xl w-full">
+      <Card className="bg-gradient-board border-gold-border border-8 px-12 pb-12 shadow-board max-w-2xl w-full">
         <div className="text-center space-y-8">
-          <div className="flex justify-center">
+          <div className="relative flex justify-center items-center">
+            {/* Pattern image as background */}
             <img
-              src={FamilyFeudLogo}
-              alt="Family Feud Logo"
-              className="w-3/4 h-auto object-cover"
+              src={Pattern}
+              alt="Pattern"
+              className="max-w-sm h-auto object-cover absolute top-0 left-1/2 -translate-x-1/2 z-0"
             />
+            {/* Foreground images */}
+            <div className="flex flex-col justify-center items-center space-y-4 mt-20 mb-8 z-10 relative">
+              <img
+                src={FamilyFeudLogo}
+                alt="Family Feud Logo"
+                className="max-w-sm h-auto object-cover"
+              />
+
+              <div className="flex flex-row justify-center items-center space-x-4">
+                <img
+                  src={LevelUpLogo}
+                  alt="Level Up Logo"
+                  className="w-36 object-cover mt-5"
+                />
+                <img
+                  src={BonaLogo}
+                  alt="Bona Banana Logo"
+                  className="w-24 object-cover "
+                />
+              </div>
+            </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-3">
                 <Label
                   htmlFor="team1"
@@ -77,29 +103,26 @@ export const TeamSetup = ({ onEnterGame, onHostControls }: TeamSetupProps) => {
               </div>
             </div>
 
-            <div className="pt-6">
-              <Button
-                type="submit"
-                variant="gold"
-                size="lg"
-                className="w-full h-16 text-2xl pulse-glow"
-              >
-                ENTER THE GAME!
-              </Button>
+            <div className="flex flex-col gap-4 pt-3">
+              <div>
+                <Button
+                  type="submit"
+                  variant="gold"
+                  size="lg"
+                  className="w-full h-16 text-2xl pulse-glow"
+                >
+                  ENTER THE GAME!
+                </Button>
+              </div>
+              <div>
+                <Link to="/view-questions">
+                  <Button className="text-lg" variant="game">
+                    Host
+                  </Button>
+                </Link>
+              </div>
             </div>
           </form>
-
-          <div className="text-center text-muted-foreground space-x-3">
-            <Button className="text-lg" variant="strike" onClick={handleHost}>
-              Host
-            </Button>
-
-            <Link to="/add-question">
-              <Button className="text-lg" variant="game">
-                Add New Question
-              </Button>
-            </Link>
-          </div>
         </div>
       </Card>
     </div>

@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import AddQuestion from "./pages/AddQuestion";
+import ViewQuestions from "./pages/ViewQuestions";
 
 const queryClient = new QueryClient();
 
@@ -17,6 +18,7 @@ const App = () => (
         <Sonner />
         <Routes>
           <Route path="/" element={<Index />} />
+          <Route path="/view-questions" element={<ViewQuestions />} />
           <Route path="/add-question" element={<AddQuestion />} />
           <Route path="*" element={<NotFound />} />
         </Routes>

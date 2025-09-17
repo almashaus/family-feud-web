@@ -2,7 +2,12 @@ import type { Config } from "tailwindcss";
 
 export default {
   darkMode: ["class"],
-  content: ["./pages/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}", "./app/**/*.{ts,tsx}", "./src/**/*.{ts,tsx}"],
+  content: [
+    "./pages/**/*.{ts,tsx}",
+    "./components/**/*.{ts,tsx}",
+    "./app/**/*.{ts,tsx}",
+    "./src/**/*.{ts,tsx}",
+  ],
   prefix: "",
   theme: {
     container: {
@@ -72,12 +77,13 @@ export default {
         "gradient-gold": "var(--gradient-gold)",
         "gradient-board": "var(--gradient-board)",
         "gradient-answer": "var(--gradient-answer)",
+        "gradient-green": "var(--gradient-green)",
         "gradient-bg": "var(--gradient-bg)",
       },
       boxShadow: {
-        "board": "var(--shadow-board)",
-        "answer": "var(--shadow-answer)",
-        "gold": "var(--shadow-gold)",
+        board: "var(--shadow-board)",
+        answer: "var(--shadow-answer)",
+        gold: "var(--shadow-gold)",
         "glow-primary": "var(--glow-primary)",
         "glow-answer": "var(--glow-answer)",
       },

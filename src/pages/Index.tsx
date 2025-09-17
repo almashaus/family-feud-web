@@ -1,69 +1,45 @@
 import { FamilyFeudGame } from "@/components/FamilyFeudGame";
 import { GameQuestion } from "@/data/questions";
-import { useQuestionsStore } from "@/lib/stores/questionsStore";
-import { supabase } from "@/services/supabase";
-import { fetchData, fetchQuestionsData } from "@/services/supabaseFunctions";
+import { fetchQuestionsData } from "@/services/supabaseFunctions";
 import { useEffect, useState } from "react";
-import useSWR from "swr";
+import useSWRImmutable from "swr";
 
-interface Setting {
-  id: string;
-  is_game_begin: boolean;
-}
 const Index = () => {
-  const { data, error, isLoading } = useSWR("questions", fetchQuestionsData);
+  const [questions, setQuestions] = useState<GameQuestion[]>([]);
 
-  const [isGameBegin, setIsGameBegin] = useState(false);
+  const { data, error, isLoading } = useSWRImmutable(
+    "questions",
+    fetchQuestionsData,
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      refreshWhenOffline: false,
+      refreshWhenHidden: false,
+      refreshInterval: 0,
+    }
+  );
 
   useEffect(() => {
-    console.log("0");
-    // 1️⃣ Fetch the initial value of is_game_begin
-    const fetchInitialValue = async () => {
-      const { data, error } = await supabase
-        .from("settings")
-        .select("is_game_begin")
-        .eq("id", 1)
-        .single();
+    if (data) {
+      const sortedData = data.map((question) => ({
+        ...question,
+        answers: question.answers.sort((a, b) => b.points - a.points),
+      })) as GameQuestion[];
+      setQuestions(sortedData);
+    }
+  }, [data]);
 
-      if (!error && data) {
-        setIsGameBegin(data.is_game_begin);
-      }
-    };
-
-    fetchInitialValue();
-
-    // 2️⃣ Subscribe to changes in the settings table
-    const channel = supabase
-      .channel("settings-changes")
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "settings",
-        },
-        (payload) => {
-          console.log("payload", payload.new);
-          if (payload.new) {
-            setIsGameBegin(payload.new.is_game_begin);
-          }
-        }
-      )
-      .subscribe((status) => {
-        console.log("Channel status:", status);
-      });
-
-    // 3️⃣ Cleanup subscription on unmount
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
-
-  if (error) return <div>failed to load</div>;
-  if (isLoading) return <div>loading...</div>;
-
-  // Always render the game, passing the latest isGameBegin
-  return <FamilyFeudGame gameQuestions={data} gameStarted={isGameBegin} />;
+  if (error)
+    return (
+      <div className="container bg-gradient-bg text-center">failed to load</div>
+    );
+  if (isLoading)
+    return (
+      <div className="container bg-gradient-bg text-center">loading...</div>
+    );
+  if (questions && questions.length > 0) {
+    return <FamilyFeudGame gameQuestions={questions} />;
+  }
 };
 
 export default Index;

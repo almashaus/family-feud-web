@@ -1,5 +1,5 @@
 export interface GameQuestion {
-  id: string;
+  id: number;
   question: string;
   answers: Array<{
     text: string;

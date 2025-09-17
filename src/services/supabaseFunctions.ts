@@ -54,11 +54,33 @@ export const updateData = async (
       query = query.eq(columnName as string, condition);
     }
     const { data, error } = await query.select();
-    console.log(data);
+
     if (error) {
       return false;
     } else {
       return true;
+    }
+  } catch (error) {
+    return false;
+  }
+};
+
+export const deleteData = async (
+  tableName: string,
+  columnName: string,
+  condition: any
+): Promise<any> => {
+  try {
+    const { data, error } = await supabase
+      .from(tableName)
+      .delete()
+      .eq(columnName, condition)
+      .select();
+
+    if (data) {
+      return true;
+    } else {
+      return false;
     }
   } catch (error) {
     return false;

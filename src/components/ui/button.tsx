@@ -25,6 +25,8 @@ const buttonVariants = cva(
         yellow:
           "bg-secondary text-primary-foreground hover:bg-secondary/80 border-4 border-gold-border shadow-glow-answer game-board-font text-lg font-bold transition-all duration-300 hover:scale-105",
         gold: "bg-gradient-gold text-secondary-foreground hover:bg-gold-glow border-4 border-primary shadow-gold game-board-font text-lg font-bold transition-all duration-300 hover:scale-105",
+        green:
+          "bg-gradient-green text-primary-foreground hover:bg-green-glow border-4 border-gold-border shadow-glow-primary game-board-font text-lg font-bold transition-all duration-300 hover:scale-105",
       },
       size: {
         default: "h-10 px-4 py-2",

@@ -3,8 +3,6 @@ import { GameBoard } from "./GameBoard";
 import { HostControls } from "./HostControls";
 import { TeamSetup } from "./TeamSetup";
 import { type GameQuestion } from "@/data/questions";
-import { useQuestionsStore } from "@/lib/stores/questionsStore";
-import { updateData } from "@/services/supabaseFunctions";
 
 interface GameState {
   currentQuestionIndex: number;
@@ -20,30 +18,25 @@ interface GameState {
 
 export const FamilyFeudGame = ({
   gameQuestions,
-  gameStarted,
 }: {
   gameQuestions: GameQuestion[];
-  gameStarted: boolean;
 }) => {
-  // Only show loading if questions are not loaded yet
   if (!gameQuestions || gameQuestions.length === 0) {
     return <div>Loading game...</div>;
   }
-
-  // Initialize gameState with default values based on loaded questions
+  const [timerKey, setTimerKey] = useState(0);
   const [gameState, setGameState] = useState<GameState>(() => ({
     currentQuestionIndex: 0,
     currentQuestion: { ...gameQuestions[0] },
     teamScores: { team1: 0, team2: 0 },
     strikes: 0,
     gameEntered: false,
-    isHost: false,
-    isGameBegin: gameStarted,
+    isHost: true,
+    isGameBegin: false,
     teams: { team1: "Team 1", team2: "Team 2" },
     currentRound: 1,
   }));
 
-  // Sync gameState.currentQuestion if gameQuestions change (e.g., after SWR fetch)
   useEffect(() => {
     setGameState((prev) => ({
       ...prev,
@@ -55,17 +48,6 @@ export const FamilyFeudGame = ({
   const handleRevealAnswer = useCallback(
     async (answerIndex: number) => {
       if (!gameState.isHost) return;
-
-      const answer = gameState.currentQuestion.answers[answerIndex];
-      const questionId = gameState.currentQuestion.id;
-
-      // Update by question_id and text for uniqueness
-      const isUpdated = await updateData(
-        "answers",
-        { revealed: true },
-        ["question_id", "text"],
-        [questionId, answer.text]
-      );
 
       setGameState((prev) => {
         const newQuestion = { ...prev.currentQuestion };
@@ -88,19 +70,11 @@ export const FamilyFeudGame = ({
   );
 
   const handleGameBegin = useCallback(async () => {
-    const isUpdated = await updateData(
-      "settings",
-      { is_game_begin: true },
-      "id",
-      1
-    );
-    if (isUpdated) {
-      setGameState((prev) => ({
-        ...prev,
-        isGameBegin: true,
-      }));
-    }
-  }, []);
+    setGameState((prev) => ({
+      ...prev,
+      isGameBegin: true,
+    }));
+  }, [gameState.isGameBegin]);
 
   const handleAddStrike = useCallback(() => {
     setGameState((prev) => ({
@@ -117,16 +91,20 @@ export const FamilyFeudGame = ({
   }, []);
 
   const handleNextQuestion = useCallback(() => {
-    const nextIndex =
-      (gameState.currentQuestionIndex + 1) % gameQuestions.length;
+    if (gameState.currentQuestionIndex !== gameQuestions.length - 1) {
+      const nextIndex =
+        (gameState.currentQuestionIndex + 1) % gameQuestions.length;
 
-    setGameState((prev) => ({
-      ...prev,
-      currentQuestionIndex: nextIndex,
-      currentQuestion: { ...gameQuestions[nextIndex] },
-      strikes: 0,
-      currentRound: prev.currentRound + 1,
-    }));
+      setGameState((prev) => ({
+        ...prev,
+        currentQuestionIndex: nextIndex,
+        currentQuestion: { ...gameQuestions[nextIndex] },
+        strikes: 0,
+        currentRound: prev.currentRound + 1,
+      }));
+
+      setTimerKey((prev) => prev + 1);
+    }
   }, [gameState.currentQuestionIndex, gameState.currentRound]);
 
   const handleAwardPoints = useCallback((team: 1 | 2, points: number) => {
@@ -161,18 +139,11 @@ export const FamilyFeudGame = ({
 
   const handleEndGame = useCallback(async (isHost: boolean) => {
     // Reset all answers in gameQuestions
-    // gameQuestions.forEach((question) => {
-    //   question.answers.forEach((answer) => {
-    //     answer.revealed = false;
-    //   });
-    // });
-
-    const isUpdated = await updateData(
-      "settings",
-      { is_game_begin: false },
-      "id",
-      1
-    );
+    gameQuestions.forEach((question) => {
+      question.answers.forEach((answer) => {
+        answer.revealed = false;
+      });
+    });
 
     setGameState((prev) => ({
       ...prev,
@@ -188,36 +159,6 @@ export const FamilyFeudGame = ({
     }));
   }, []);
 
-  if (gameState.isHost && gameState.gameEntered) {
-    return (
-      <div className="min-h-screen bg-gradient-bg sparkle-bg p-4">
-        <div className="p-2 space-y-4 rounded-lg border-4 border-red-500 pb-6">
-          <GameBoard
-            question={gameState.currentQuestion.question}
-            answers={gameState.currentQuestion.answers}
-            onRevealAnswer={handleRevealAnswer}
-            onEndGame={handleEndGame}
-            teamScores={gameState.teamScores}
-            strikes={gameState.strikes}
-            isHost={gameState.isHost}
-            isGameBegin={gameState.isGameBegin}
-          />
-
-          <HostControls
-            onGameBegin={handleGameBegin}
-            onAddStrike={handleAddStrike}
-            onResetStrikes={handleResetStrikes}
-            onNextQuestion={handleNextQuestion}
-            onAwardPoints={handleAwardPoints}
-            currentRound={gameState.currentRound}
-            totalRounds={gameQuestions.length}
-            isGameBegin={gameState.isGameBegin}
-          />
-        </div>
-      </div>
-    );
-  }
-
   if (!gameState.gameEntered) {
     return (
       <TeamSetup
@@ -228,16 +169,32 @@ export const FamilyFeudGame = ({
   }
 
   return (
-    <div className="min-h-screen bg-gradient-bg sparkle-bg p-4">
-      <div className="container mx-auto space-y-8">
+    <div className="bg-gradient-bg sparkle-bg p-2">
+      <div className="space-y-2">
         <GameBoard
+          key={timerKey}
           question={gameState.currentQuestion.question}
           answers={gameState.currentQuestion.answers}
-          onRevealAnswer={handleRevealAnswer}
           onEndGame={handleEndGame}
+          onRevealAnswer={handleRevealAnswer}
+          currentRound={gameState.currentRound}
+          totalRounds={gameQuestions.length}
           teamScores={gameState.teamScores}
           strikes={gameState.strikes}
           isHost={gameState.isHost}
+          isGameBegin={gameState.isGameBegin}
+        />
+
+        <HostControls
+          onGameBegin={handleGameBegin}
+          onAddStrike={handleAddStrike}
+          onResetStrikes={handleResetStrikes}
+          onNextQuestion={handleNextQuestion}
+          onAwardPoints={handleAwardPoints}
+          onEndGame={handleEndGame}
+          answers={gameState.currentQuestion.answers}
+          currentRound={gameState.currentRound}
+          totalRounds={gameQuestions.length}
           isGameBegin={gameState.isGameBegin}
         />
       </div>
