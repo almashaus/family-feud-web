@@ -48,7 +48,7 @@ export const TeamSetup = ({ onEnterGame, onHostControls }: TeamSetupProps) => {
               <img
                 src={FamilyFeudLogo}
                 alt="Family Feud Logo"
-                className="max-w-sm h-auto object-cover"
+                className="min-w-sm md:max-w-sm h-auto object-cover"
               />
 
               <div className="flex flex-row justify-center items-center space-x-4">

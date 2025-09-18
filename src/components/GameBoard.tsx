@@ -93,7 +93,7 @@ export const GameBoard = ({
           </Card>
         </div>
         {/* question */}
-        <Card className="bg-gradient-primary border-gold-border border-4  px-16 py-4 shadow-board">
+        <Card className="bg-gradient-primary border-gold-border border-4  px-2 md:px-16 py-4 shadow-board">
           <h2
             className={` ${
               !isGameBegin && "invisible"

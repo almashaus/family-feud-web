@@ -36,14 +36,16 @@ export const FamilyFeudGame = ({
     teams: { team1: "Team 1", team2: "Team 2" },
     currentRound: 1,
   }));
+  const [filteredQuestions, setFilteredQuestions] =
+    useState<GameQuestion[]>(gameQuestions);
 
   useEffect(() => {
     setGameState((prev) => ({
       ...prev,
-      currentQuestion: { ...gameQuestions[prev.currentQuestionIndex] },
+      currentQuestion: { ...filteredQuestions[prev.currentQuestionIndex] },
     }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gameQuestions]);
+  }, [filteredQuestions]);
 
   const handleRevealAnswer = useCallback(
     async (answerIndex: number) => {
@@ -69,12 +71,30 @@ export const FamilyFeudGame = ({
     [gameState.isHost, gameState.currentQuestion]
   );
 
-  const handleGameBegin = useCallback(async () => {
-    setGameState((prev) => ({
-      ...prev,
-      isGameBegin: true,
-    }));
-  }, [gameState.isGameBegin]);
+  const handleGameBegin = useCallback(
+    async (_isGameBegin: boolean, startId?: number, endId?: number) => {
+      if (startId && endId && startId <= endId) {
+        const filtered = gameQuestions.filter(
+          (q) => q.id >= startId && q.id <= endId
+        );
+        setFilteredQuestions(filtered);
+        setGameState((prev) => ({
+          ...prev,
+          isGameBegin: true,
+          currentQuestionIndex: 0,
+          currentQuestion: { ...filtered[0] },
+          currentRound: 1,
+        }));
+      } else {
+        setFilteredQuestions(gameQuestions);
+        setGameState((prev) => ({
+          ...prev,
+          isGameBegin: true,
+        }));
+      }
+    },
+    [gameQuestions]
+  );
 
   const handleAddStrike = useCallback(() => {
     setGameState((prev) => ({
@@ -91,21 +111,25 @@ export const FamilyFeudGame = ({
   }, []);
 
   const handleNextQuestion = useCallback(() => {
-    if (gameState.currentQuestionIndex !== gameQuestions.length - 1) {
+    if (gameState.currentQuestionIndex !== filteredQuestions.length - 1) {
       const nextIndex =
-        (gameState.currentQuestionIndex + 1) % gameQuestions.length;
+        (gameState.currentQuestionIndex + 1) % filteredQuestions.length;
 
       setGameState((prev) => ({
         ...prev,
         currentQuestionIndex: nextIndex,
-        currentQuestion: { ...gameQuestions[nextIndex] },
+        currentQuestion: { ...filteredQuestions[nextIndex] },
         strikes: 0,
         currentRound: prev.currentRound + 1,
       }));
 
       setTimerKey((prev) => prev + 1);
     }
-  }, [gameState.currentQuestionIndex, gameState.currentRound]);
+  }, [
+    gameState.currentQuestionIndex,
+    gameState.currentRound,
+    filteredQuestions,
+  ]);
 
   const handleAwardPoints = useCallback((team: 1 | 2, points: number) => {
     setGameState((prev) => ({
@@ -137,27 +161,31 @@ export const FamilyFeudGame = ({
     }));
   }, []);
 
-  const handleEndGame = useCallback(async (isHost: boolean) => {
-    // Reset all answers in gameQuestions
-    gameQuestions.forEach((question) => {
-      question.answers.forEach((answer) => {
-        answer.revealed = false;
+  const handleEndGame = useCallback(
+    async (isHost: boolean) => {
+      // Reset all answers in gameQuestions
+      gameQuestions.forEach((question) => {
+        question.answers.forEach((answer) => {
+          answer.revealed = false;
+        });
       });
-    });
 
-    setGameState((prev) => ({
-      ...prev,
-      currentQuestionIndex: 0,
-      currentQuestion: { ...gameQuestions[0] },
-      teamScores: { team1: 0, team2: 0 },
-      strikes: 0,
-      gameEntered: false,
-      isHost: false,
-      isGameBegin: false,
-      teams: { team1: "Team 1", team2: "Team 2" },
-      currentRound: 1,
-    }));
-  }, []);
+      setFilteredQuestions(gameQuestions);
+      setGameState((prev) => ({
+        ...prev,
+        currentQuestionIndex: 0,
+        currentQuestion: { ...gameQuestions[0] },
+        teamScores: { team1: 0, team2: 0 },
+        strikes: 0,
+        gameEntered: false,
+        isHost: false,
+        isGameBegin: false,
+        teams: { team1: "Team 1", team2: "Team 2" },
+        currentRound: 1,
+      }));
+    },
+    [gameQuestions]
+  );
 
   if (!gameState.gameEntered) {
     return (
@@ -178,7 +206,7 @@ export const FamilyFeudGame = ({
           onEndGame={handleEndGame}
           onRevealAnswer={handleRevealAnswer}
           currentRound={gameState.currentRound}
-          totalRounds={gameQuestions.length}
+          totalRounds={filteredQuestions.length}
           teamScores={gameState.teamScores}
           strikes={gameState.strikes}
           isHost={gameState.isHost}
@@ -186,6 +214,7 @@ export const FamilyFeudGame = ({
         />
 
         <HostControls
+          questions={filteredQuestions}
           onGameBegin={handleGameBegin}
           onAddStrike={handleAddStrike}
           onResetStrikes={handleResetStrikes}
@@ -194,7 +223,7 @@ export const FamilyFeudGame = ({
           onEndGame={handleEndGame}
           answers={gameState.currentQuestion.answers}
           currentRound={gameState.currentRound}
-          totalRounds={gameQuestions.length}
+          totalRounds={filteredQuestions.length}
           isGameBegin={gameState.isGameBegin}
         />
       </div>

@@ -42,7 +42,7 @@ const ViewQuestions = () => {
   }, [data]);
 
   const handleDeleteQuestion = async (id: number) => {
-    const isDeleted = await deleteData("questions", "id", id);
+    const isDeleted = await deleteData("questions", "question_number", id);
     if (isDeleted) {
       await mutate("questions");
     }
@@ -80,8 +80,13 @@ const ViewQuestions = () => {
             {questions?.map((item, index) => (
               <div key={index}>
                 {/* Question */}
-                <div className="flex flex-row justify-between bg-gradient-primary border-gold-border border-4 rounded-lg mb-2 p-4 shadow-board text-xl font-semibold">
-                  <span>{item.question} </span>
+                <div className="flex flex-row justify-between bg-gradient-primary border-gold-border border-4 rounded-lg mb-2 p-4 space-x-1 shadow-board text-xl font-semibold">
+                  <div className="flex">
+                    <div className="bg-secondary flex flex-row justify-center rounded-full w-8 h-8 me-2 text-xl font-semibold">
+                      {item.id}
+                    </div>
+                    <span>{item.question} </span>
+                  </div>
                   <Button
                     onClick={() => handleDeleteQuestion(item.id)}
                     variant="strike"
@@ -115,7 +120,7 @@ const ViewQuestions = () => {
             {/* Save Button */}
             <div className="flex justify-center pt-4">
               <Link to="/add-question">
-                <Button variant="gold" className="px-24 py-6 text-lg gap-2">
+                <Button variant="gold" className="md:px-24 py-6 text-lg gap-2">
                   <PlusIcon className="w-5 h-5" />
                   Add New Question
                 </Button>

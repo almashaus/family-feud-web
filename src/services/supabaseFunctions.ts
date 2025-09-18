@@ -5,6 +5,7 @@ export const fetchQuestionsData = async (): Promise<GameQuestion[]> => {
   const { data, error } = await supabase.from("questions").select(`
       id,
       question,
+      question_number,
       answers (
         text,
         points,
@@ -12,16 +13,20 @@ export const fetchQuestionsData = async (): Promise<GameQuestion[]> => {
       )
     `);
 
-  const questions: GameQuestion[] = (data ?? []).map((q: any) => ({
-    ...q,
-    answers: Array.isArray(q.answers)
-      ? q.answers.map((a: any) => ({
-          text: a.text ?? "",
-          points: a.points ?? 0,
-          revealed: a.revealed ?? false,
-        }))
-      : [],
-  }));
+  const questions: GameQuestion[] = (data ?? []).map(
+    (q: any) =>
+      ({
+        id: q.question_number,
+        question: q.question,
+        answers: Array.isArray(q.answers)
+          ? q.answers.map((a: any) => ({
+              text: a.text ?? "",
+              points: a.points ?? 0,
+              revealed: a.revealed ?? false,
+            }))
+          : [],
+      } as GameQuestion)
+  );
 
   return questions;
 };
