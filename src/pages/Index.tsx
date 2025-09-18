@@ -1,6 +1,7 @@
 import { FamilyFeudGame } from "@/components/FamilyFeudGame";
 import { GameQuestion } from "@/data/questions";
 import { fetchQuestionsData } from "@/services/supabaseFunctions";
+import FamilyFeudLogo from "/images/FF-logo.png";
 import { useEffect, useState } from "react";
 import useSWRImmutable from "swr";
 
@@ -35,7 +36,13 @@ const Index = () => {
     );
   if (isLoading)
     return (
-      <div className="container bg-gradient-bg text-center">loading...</div>
+      <div className="container bg-gradient-bg flex justify-center items-center py-28">
+        <img
+          src={FamilyFeudLogo}
+          alt="Family Feud Logo"
+          className="min-w-sm md:max-w-sm h-auto object-cover"
+        />
+      </div>
     );
   if (questions && questions.length > 0) {
     return <FamilyFeudGame gameQuestions={questions} />;

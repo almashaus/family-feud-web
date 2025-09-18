@@ -14,10 +14,11 @@ export interface Answer {
 interface GameBoardProps {
   question: string;
   answers: Answer[];
-  onRevealAnswer: (index: number) => void;
+  onRevealAnswer: (index: number, teamNumber: number, timeLeft: number) => void;
   onEndGame: (gameStarted: boolean, answer: Answer[]) => void;
   currentRound: number;
   totalRounds: number;
+  teams: { team1: string; team2: string };
   teamScores: { team1: number; team2: number };
   strikes: number;
   isHost?: boolean;
@@ -31,12 +32,14 @@ export const GameBoard = ({
   onEndGame,
   currentRound,
   totalRounds,
+  teams,
   teamScores,
   strikes,
   isHost,
   isGameBegin,
 }: GameBoardProps) => {
   const [timeLeft, setTimeLeft] = useState(60);
+  const [selectedTeam, setSelectedTeam] = useState<1 | 2 | null>(null);
 
   useEffect(() => {
     if (isGameBegin) {
@@ -120,12 +123,14 @@ export const GameBoard = ({
       <div className="flex flex-col items-center gap-4">
         {/* Answer Board */}
         <div className="flex justify-between items-center gap-3">
-          <Card className="bg-gradient-board border-gold-border text-primary-foreground border-4 p-6 shadow-gold hidden lg:flex">
-            <div className="text-center">
-              <h3 className="game-board-font text-2xl">TEAM 1</h3>
-              <p className="game-board-font text-4xl">{teamScores.team1}</p>
-            </div>
-          </Card>
+          <div className=" hidden lg:flex">
+            <Team1
+              teams={teams}
+              teamScores={teamScores}
+              selected={selectedTeam === 1}
+              onSelect={() => setSelectedTeam(1)}
+            />
+          </div>
 
           <div className="bg-gradient-board border-gold-border border-8 rounded-3xl p-3 md:p-4 shadow-board ">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 ">
@@ -134,34 +139,35 @@ export const GameBoard = ({
                   key={index}
                   number={index + 1}
                   answer={answer}
-                  onReveal={() => onRevealAnswer(index)}
+                  onReveal={() => onRevealAnswer(index, selectedTeam, timeLeft)}
                   isHost={isHost}
                   isGameBegin={isGameBegin}
+                  selectedTeam={selectedTeam}
                 />
               ))}
             </div>
           </div>
 
-          <Card className="bg-gradient-board border-gold-border text-primary-foreground border-4 p-6 shadow-gold hidden lg:flex">
-            <div className="text-center">
-              <h3 className="game-board-font text-2xl">TEAM 2</h3>
-              <p className="game-board-font text-4xl">{teamScores.team2}</p>
-            </div>
-          </Card>
+          <div className=" hidden lg:flex">
+            <Team2
+              teams={teams}
+              teamScores={teamScores}
+              selected={selectedTeam === 2}
+              onSelect={() => setSelectedTeam(2)}
+            />
+          </div>
         </div>
 
         {/* Score and Strikes Display */}
         <div className="flex justify-between lg:justify-center items-center w-full max-w-4xl">
-          <Card className="bg-gradient-gold border-primary border-4 p-2 md:p-6 shadow-gold lg:hidden flex">
-            <div className="text-center">
-              <h3 className="game-board-font text-2xl text-secondary-foreground">
-                TEAM 1
-              </h3>
-              <p className="game-board-font text-4xl text-secondary-foreground">
-                {teamScores.team1}
-              </p>
-            </div>
-          </Card>
+          <div className="flex lg:hidden">
+            <Team1
+              teams={teams}
+              teamScores={teamScores}
+              selected={selectedTeam === 1}
+              onSelect={() => setSelectedTeam(1)}
+            />
+          </div>
           <Card className="bg-gradient-primary border-gold-border border-4 px-2 md:px-6 py-2 ">
             <div className="text-center">
               <h3 className="game-board-font text-xl text-primary-foreground">
@@ -185,16 +191,14 @@ export const GameBoard = ({
             </div>
           </Card>
 
-          <Card className="bg-gradient-gold border-primary border-4 p-2 md:p-6 shadow-gold lg:hidden flex">
-            <div className="text-center">
-              <h3 className="game-board-font text-2xl text-secondary-foreground">
-                TEAM 2
-              </h3>
-              <p className="game-board-font text-4xl text-secondary-foreground">
-                {teamScores.team2}
-              </p>
-            </div>
-          </Card>
+          <div className="flex lg:hidden">
+            <Team2
+              teams={teams}
+              teamScores={teamScores}
+              selected={selectedTeam === 2}
+              onSelect={() => setSelectedTeam(2)}
+            />
+          </div>
         </div>
       </div>
     </div>
@@ -207,6 +211,7 @@ interface AnswerSlotProps {
   onReveal: () => void;
   isHost: boolean;
   isGameBegin: boolean;
+  selectedTeam: 1 | 2 | null;
 }
 
 const AnswerSlot = ({
@@ -215,6 +220,7 @@ const AnswerSlot = ({
   onReveal,
   isHost,
   isGameBegin,
+  selectedTeam,
 }: AnswerSlotProps) => {
   return (
     <div
@@ -231,7 +237,11 @@ const AnswerSlot = ({
             : ""
         }
       `}
-      onClick={isHost && !answer.revealed && isGameBegin ? onReveal : undefined}
+      onClick={
+        isHost && !answer.revealed && isGameBegin && selectedTeam
+          ? onReveal
+          : undefined
+      }
     >
       {answer.revealed ? (
         <div className="flex items-center justify-between h-full px-6 reveal-animation">
@@ -252,5 +262,44 @@ const AnswerSlot = ({
         </div>
       )}
     </div>
+  );
+};
+
+interface TeamProps {
+  teams: { team1: string; team2: string };
+  teamScores: { team1: number; team2: number };
+  selected: boolean;
+  onSelect: () => void;
+}
+
+const Team1 = ({ teams, teamScores, selected, onSelect }: TeamProps) => {
+  return (
+    <Card
+      className={`${
+        selected ? "bg-gradient-gold" : "bg-gradient-board"
+      } border-gold-border text-primary-foreground border-4 p-2 md:p-6 shadow-gold cursor-pointer`}
+      onClick={onSelect}
+    >
+      <div className="text-center">
+        <h3 className="game-board-font md:text-2xl">{teams.team1}</h3>
+        <p className="game-board-font md:text-4xl">{teamScores.team1}</p>
+      </div>
+    </Card>
+  );
+};
+
+const Team2 = ({ teams, teamScores, selected, onSelect }: TeamProps) => {
+  return (
+    <Card
+      className={`${
+        selected ? "bg-gradient-gold" : "bg-gradient-board"
+      } border-gold-border text-primary-foreground border-4 p-2 md:p-6 shadow-gold cursor-pointer`}
+      onClick={onSelect}
+    >
+      <div className="text-center">
+        <h3 className="game-board-font md:text-2xl">{teams.team2}</h3>
+        <p className="game-board-font md:text-4xl">{teamScores.team2}</p>
+      </div>
+    </Card>
   );
 };

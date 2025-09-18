@@ -117,7 +117,7 @@ const AddQuestion = () => {
       <div className="relative z-10 container mx-auto px-4 py-8">
         <Card className="mx-auto bg-gradient-board border-gold-border border-8 md:p-6 shadow-board max-w-2xl w-full">
           <CardHeader className="flex flex-row justify-between">
-            <Link to="/view-questions">
+            <Link to="/host">
               <Button variant="ghost" className="text-white hover:bg-white/10">
                 <ArrowLeft className="w-4 h-4" strokeWidth={4} />
               </Button>

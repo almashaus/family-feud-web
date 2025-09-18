@@ -115,7 +115,7 @@ export const TeamSetup = ({ onEnterGame, onHostControls }: TeamSetupProps) => {
                 </Button>
               </div>
               <div>
-                <Link to="/view-questions">
+                <Link to="/host">
                   <Button className="text-lg" variant="game">
                     Host
                   </Button>

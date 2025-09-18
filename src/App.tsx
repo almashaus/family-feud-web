@@ -18,8 +18,8 @@ const App = () => (
         <Sonner />
         <Routes>
           <Route path="/" element={<Index />} />
-          <Route path="/view-questions" element={<ViewQuestions />} />
-          <Route path="/add-question" element={<AddQuestion />} />
+          <Route path="/host" element={<ViewQuestions />} />
+          <Route path="/host/add-question" element={<AddQuestion />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

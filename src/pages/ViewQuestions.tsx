@@ -119,7 +119,7 @@ const ViewQuestions = () => {
 
             {/* Save Button */}
             <div className="flex justify-center pt-4">
-              <Link to="/add-question">
+              <Link to="/host/add-question">
                 <Button variant="gold" className="md:px-24 py-6 text-lg gap-2">
                   <PlusIcon className="w-5 h-5" />
                   Add New Question
