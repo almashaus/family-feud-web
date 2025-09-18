@@ -8,6 +8,7 @@ import BonaLogo from "/images/BB-logo.png";
 import LevelUpLogo from "/images/LVLUP-logo.png";
 import Pattern from "/images/FF-pattern.png";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 
 interface TeamSetupProps {
   onEnterGame: (team1Name: string, team2Name: string) => void;
@@ -18,18 +19,14 @@ export const TeamSetup = ({ onEnterGame, onHostControls }: TeamSetupProps) => {
   const [team1Name, setTeam1Name] = useState("Heroes");
   const [team2Name, setTeam2Name] = useState("Champions");
 
+  const { user, signOut } = useAuth();
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (team1Name.trim() && team2Name.trim()) {
       onEnterGame(team1Name.trim(), team2Name.trim());
       onHostControls(true);
     }
-  };
-
-  const handleHost = (e: React.FormEvent) => {
-    e.preventDefault();
-    onEnterGame(team1Name.trim(), team2Name.trim());
-    onHostControls(true);
   };
 
   return (
@@ -120,6 +117,15 @@ export const TeamSetup = ({ onEnterGame, onHostControls }: TeamSetupProps) => {
                     Host
                   </Button>
                 </Link>
+              </div>
+              <div>
+                <Button
+                  onClick={signOut}
+                  variant="link"
+                  className="text-lg text-primary"
+                >
+                  Sign Out
+                </Button>
               </div>
             </div>
           </form>

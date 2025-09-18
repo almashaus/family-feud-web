@@ -3,6 +3,7 @@ import { GameBoard } from "./GameBoard";
 import { HostControls } from "./HostControls";
 import { TeamSetup } from "./TeamSetup";
 import { type GameQuestion } from "@/data/questions";
+import { useToast } from "@/hooks/use-toast";
 
 interface GameState {
   currentQuestionIndex: number;
@@ -58,6 +59,7 @@ export const FamilyFeudGame = ({
         if (answer && !answer.revealed) {
           answer.revealed = true;
           const newTeamScores = { ...prev.teamScores };
+
           if (timeLeft > 0) {
             if (teamNumber === 1) {
               newTeamScores.team1 += answer.points;

@@ -7,23 +7,50 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import AddQuestion from "./pages/AddQuestion";
 import ViewQuestions from "./pages/ViewQuestions";
+import LoginPage from "./pages/LoginPage";
+import { AuthProvider } from "./hooks/useAuth";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <BrowserRouter>
-        <Toaster />
-        <Sonner />
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/host" element={<ViewQuestions />} />
-          <Route path="/host/add-question" element={<AddQuestion />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
+    <AuthProvider>
+      <TooltipProvider>
+        <BrowserRouter>
+          <Toaster />
+          <Sonner />
+          <Routes>
+            <Route
+              path="/"
+              element={
+                <ProtectedRoute>
+                  <Index />
+                </ProtectedRoute>
+              }
+            />
+            <Route path="/login" element={<LoginPage />} />
+            <Route
+              path="/host"
+              element={
+                <ProtectedRoute>
+                  <ViewQuestions />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/host/add-question"
+              element={
+                <ProtectedRoute>
+                  <AddQuestion />
+                </ProtectedRoute>
+              }
+            />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </AuthProvider>
   </QueryClientProvider>
 );
 

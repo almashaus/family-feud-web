@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { XIcon } from "lucide-react";
 import { supabase } from "@/services/supabase";
 import { Badge } from "./ui/badge";
+import { useToast } from "@/hooks/use-toast";
 
 export interface Answer {
   text: string;
@@ -78,7 +79,7 @@ export const GameBoard = ({
             </Badge>
           </div>
           {/* Timer */}
-          <Card className="bg-gradient-gold border-primary border-4 px-10 py-1 shadow-gold">
+          <Card className="bg-gradient-gold border-primary border-4 px-6 py-1 shadow-gold">
             <div className="text-center">
               <h3 className="game-board-font text-lg text-secondary-foreground">
                 TIME
@@ -222,6 +223,16 @@ const AnswerSlot = ({
   isGameBegin,
   selectedTeam,
 }: AnswerSlotProps) => {
+  const { toast } = useToast();
+  const handleNotReveal = () => {
+    if (!selectedTeam && isGameBegin) {
+      toast({
+        title: "Warning",
+        description: "Please select a team",
+        variant: "destructive",
+      });
+    }
+  };
   return (
     <div
       className={`
@@ -240,7 +251,7 @@ const AnswerSlot = ({
       onClick={
         isHost && !answer.revealed && isGameBegin && selectedTeam
           ? onReveal
-          : undefined
+          : handleNotReveal
       }
     >
       {answer.revealed ? (
