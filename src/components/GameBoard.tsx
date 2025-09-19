@@ -95,7 +95,7 @@ export const GameBoard = ({
           </Button>
         </div>
         {/* question */}
-        <Card className="bg-gradient-primary border-gold-border border-4 px-2 md:px-16 py-4 shadow-board">
+        <Card className="bg-gradient-primary border-gold-border border-4 px-2 md:px-4 py-4 shadow-board">
           <h2
             className={` ${
               !isGameBegin && "invisible"
@@ -112,7 +112,7 @@ export const GameBoard = ({
           {/* Rounds */}
           <Badge
             variant="secondary"
-            className="game-board-font text-lg px-4 py-1"
+            className="game-board-font text-lg  px-4 py-1"
           >
             ROUND {currentRound} / {totalRounds}
           </Badge>

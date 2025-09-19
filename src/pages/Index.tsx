@@ -22,7 +22,8 @@ const Index = () => {
 
   useEffect(() => {
     if (data) {
-      const sortedData = data.map((question) => ({
+      const sortedQuestions = data.sort((a, b) => a.id - b.id);
+      const sortedData = sortedQuestions.map((question) => ({
         ...question,
         answers: question.answers.sort((a, b) => b.points - a.points),
       })) as GameQuestion[];
