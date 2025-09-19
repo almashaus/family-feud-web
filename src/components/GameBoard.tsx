@@ -15,7 +15,12 @@ export interface Answer {
 interface GameBoardProps {
   question: string;
   answers: Answer[];
-  onRevealAnswer: (index: number, teamNumber: number, timeLeft: number) => void;
+  onRevealAnswer: (
+    index: number,
+    teamNumber: number,
+    isRevealAnswer: boolean
+  ) => void;
+  onRevealAllAnswer: () => void;
   onEndGame: (gameStarted: boolean, answer: Answer[]) => void;
   currentRound: number;
   totalRounds: number;
@@ -30,6 +35,7 @@ export const GameBoard = ({
   question,
   answers,
   onRevealAnswer,
+  onRevealAllAnswer,
   onEndGame,
   currentRound,
   totalRounds,
@@ -39,17 +45,8 @@ export const GameBoard = ({
   isHost,
   isGameBegin,
 }: GameBoardProps) => {
-  const [timeLeft, setTimeLeft] = useState(60);
+  const [isRevealAnswer, setIsRevealAnswer] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState<1 | 2 | null>(null);
-
-  useEffect(() => {
-    if (isGameBegin) {
-      if (timeLeft > 0) {
-        const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
-        return () => clearTimeout(timer);
-      }
-    }
-  }, [timeLeft, isGameBegin]);
 
   const handleEndGame = (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,6 +56,13 @@ export const GameBoard = ({
     }));
 
     onEndGame(false, resetAnswers);
+  };
+
+  const handleRevealAllAnswer = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    setIsRevealAnswer(true);
+    onRevealAllAnswer();
   };
   return (
     <div className="flex flex-col gap-4 p-2 md:p-4">
@@ -79,22 +83,15 @@ export const GameBoard = ({
             </Badge>
           </div>
           {/* Timer */}
-          <Card className="bg-gradient-gold border-primary border-4 px-6 py-1 shadow-gold">
-            <div className="text-center">
-              <h3 className="game-board-font text-lg text-secondary-foreground">
-                TIME
-              </h3>
-              <p
-                className={`game-board-font text-5xl ${
-                  timeLeft <= 10
-                    ? "text-strike-red animate-pulse"
-                    : "text-secondary-foreground"
-                }`}
-              >
-                {timeLeft}
-              </p>
-            </div>
-          </Card>
+
+          <Button
+            variant="gold"
+            className="px-4 py-8"
+            onClick={handleRevealAllAnswer}
+            disabled={isRevealAnswer || !isGameBegin}
+          >
+            <span className="">REVEAL ANSWERS</span>
+          </Button>
         </div>
         {/* question */}
         <Card className="bg-gradient-primary border-gold-border border-4  px-2 md:px-16 py-4 shadow-board">
@@ -128,7 +125,7 @@ export const GameBoard = ({
             <Team1
               teams={teams}
               teamScores={teamScores}
-              selected={selectedTeam === 1}
+              selected={isRevealAnswer ? null : selectedTeam === 1}
               onSelect={() => setSelectedTeam(1)}
             />
           </div>
@@ -140,7 +137,9 @@ export const GameBoard = ({
                   key={index}
                   number={index + 1}
                   answer={answer}
-                  onReveal={() => onRevealAnswer(index, selectedTeam, timeLeft)}
+                  onReveal={() =>
+                    onRevealAnswer(index, selectedTeam, isRevealAnswer)
+                  }
                   isHost={isHost}
                   isGameBegin={isGameBegin}
                   selectedTeam={selectedTeam}
@@ -153,7 +152,7 @@ export const GameBoard = ({
             <Team2
               teams={teams}
               teamScores={teamScores}
-              selected={selectedTeam === 2}
+              selected={isRevealAnswer ? null : selectedTeam === 2}
               onSelect={() => setSelectedTeam(2)}
             />
           </div>
@@ -165,7 +164,7 @@ export const GameBoard = ({
             <Team1
               teams={teams}
               teamScores={teamScores}
-              selected={selectedTeam === 1}
+              selected={isRevealAnswer ? null : selectedTeam === 1}
               onSelect={() => setSelectedTeam(1)}
             />
           </div>
@@ -196,7 +195,7 @@ export const GameBoard = ({
             <Team2
               teams={teams}
               teamScores={teamScores}
-              selected={selectedTeam === 2}
+              selected={isRevealAnswer ? null : selectedTeam === 2}
               onSelect={() => setSelectedTeam(2)}
             />
           </div>
@@ -229,7 +228,7 @@ const AnswerSlot = ({
       toast({
         title: "Warning",
         description: "Please select a team",
-        variant: "destructive",
+        variant: "default",
       });
     }
   };

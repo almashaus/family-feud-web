@@ -49,7 +49,11 @@ export const FamilyFeudGame = ({
   }, [filteredQuestions]);
 
   const handleRevealAnswer = useCallback(
-    async (answerIndex: number, teamNumber: number, timeLeft: number) => {
+    async (
+      answerIndex: number,
+      teamNumber: number,
+      isRevealAnswer: boolean
+    ) => {
       if (!gameState.isHost) return;
 
       setGameState((prev) => {
@@ -60,7 +64,7 @@ export const FamilyFeudGame = ({
           answer.revealed = true;
           const newTeamScores = { ...prev.teamScores };
 
-          if (timeLeft > 0) {
+          if (!isRevealAnswer) {
             if (teamNumber === 1) {
               newTeamScores.team1 += answer.points;
             } else {
@@ -79,6 +83,26 @@ export const FamilyFeudGame = ({
     },
     [gameState.isHost, gameState.currentQuestion]
   );
+
+  const handleRevealAllAnswers = useCallback(async () => {
+    if (!gameState.isHost) return;
+
+    setGameState((prev) => {
+      const newQuestion = { ...prev.currentQuestion };
+
+      for (let i = 0; i < newQuestion.answers.length; i++) {
+        const answer = newQuestion.answers[i];
+
+        if (answer && !answer.revealed) {
+          answer.revealed = true;
+        }
+      }
+      return {
+        ...prev,
+        currentQuestion: newQuestion,
+      };
+    });
+  }, [gameState.isHost, gameState.currentQuestion]);
 
   const handleGameBegin = useCallback(
     async (_isGameBegin: boolean, startId?: number, endId?: number) => {
@@ -214,6 +238,7 @@ export const FamilyFeudGame = ({
           answers={gameState.currentQuestion.answers}
           onEndGame={handleEndGame}
           onRevealAnswer={handleRevealAnswer}
+          onRevealAllAnswer={handleRevealAllAnswers}
           currentRound={gameState.currentRound}
           totalRounds={filteredQuestions.length}
           teams={gameState.teams}
