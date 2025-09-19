@@ -86,15 +86,16 @@ export const GameBoard = ({
 
           <Button
             variant="gold"
-            className="px-4 py-8"
             onClick={handleRevealAllAnswer}
             disabled={isRevealAnswer || !isGameBegin}
+            style={{ whiteSpace: "pre-line" }}
+            className="py-9"
           >
-            <span className="">REVEAL ANSWERS</span>
+            REVEAL{"\n"}ANSWERS
           </Button>
         </div>
         {/* question */}
-        <Card className="bg-gradient-primary border-gold-border border-4  px-2 md:px-16 py-4 shadow-board">
+        <Card className="bg-gradient-primary border-gold-border border-4 px-2 md:px-16 py-4 shadow-board">
           <h2
             className={` ${
               !isGameBegin && "invisible"
@@ -103,7 +104,7 @@ export const GameBoard = ({
             {question}
           </h2>
         </Card>
-        <div className="hidden md:flex md:flex-col gap-2">
+        <div className="hidden md:flex md:flex-col gap-2 mx-3">
           {/* end game */}
           <Button variant="strike" onClick={handleEndGame}>
             END GAME
@@ -228,7 +229,8 @@ const AnswerSlot = ({
       toast({
         title: "Warning",
         description: "Please select a team",
-        variant: "default",
+        variant: "warning",
+        duration: 2000,
       });
     }
   };
