@@ -13,6 +13,7 @@ import { Plus, Trash2, Save, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
 import { supabase } from "@/services/supabase";
+import { qq } from "@/data/questions";
 
 interface Answer {
   text: string;
@@ -51,6 +52,46 @@ const AddQuestion = () => {
     );
     setAnswers(updatedAnswers);
   };
+
+  async function addQuestions() {
+    for (const q of qq.slice(3)) {
+      // Insert question
+      const { data: questionData, error: questionError } = await supabase
+        .from("questions")
+        .insert({ question: q.question })
+        .select();
+
+      if (questionError) {
+        console.error("Error inserting question:", questionError);
+        continue; // skip this question if error
+      }
+
+      if (questionData) {
+        const questionId = questionData[0].id;
+
+        // Sort answers by points in descending order
+        const sortedAnswers = q.answers
+          .sort((a, b) => b.points - a.points)
+          .map((answer) => ({
+            text: answer.text.toUpperCase(),
+            points: answer.points,
+            revealed: false,
+            question_id: questionId,
+          }));
+
+        // Insert answers
+        const { error: answersError } = await supabase
+          .from("answers")
+          .insert(sortedAnswers);
+
+        if (answersError) {
+          console.error("Error inserting answers:", answersError);
+        } else {
+          console.log(`✅ Added question: ${q.question}`);
+        }
+      }
+    }
+  }
 
   const handleSave = async () => {
     if (!question.trim()) {
@@ -216,7 +257,7 @@ const AddQuestion = () => {
             <div className="flex justify-center pt-4">
               <Button
                 variant="green"
-                onClick={handleSave}
+                onClick={addQuestions}
                 className="md:px-24 py-6 text-lg gap-2"
               >
                 <Save className="w-5 h-5" />

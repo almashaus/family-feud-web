@@ -95,7 +95,7 @@ export const GameBoard = ({
           </Button>
         </div>
         {/* question */}
-        <Card className="bg-gradient-primary border-gold-border border-4 px-2 md:px-4 py-4 shadow-board">
+        <Card className="bg-gradient-primary border-gold-border border-4 px-2 md:px-1 py-4 md:mx-8 shadow-board">
           <h2
             className={` ${
               !isGameBegin && "invisible"
@@ -104,17 +104,18 @@ export const GameBoard = ({
             {question}
           </h2>
         </Card>
-        <div className="hidden md:flex md:flex-col gap-2 mx-3">
+        <div className="hidden md:flex md:flex-col gap-2 ">
           {/* end game */}
-          <Button variant="strike" onClick={handleEndGame}>
+          <Button variant="strike" onClick={handleEndGame} className="px-6">
             END GAME
           </Button>
           {/* Rounds */}
           <Badge
             variant="secondary"
-            className="game-board-font text-lg  px-4 py-1"
+            className="game-board-font flex justify-center text-center text-lg  px-4 py-1"
+            style={{ whiteSpace: "pre-line" }}
           >
-            ROUND {currentRound} / {totalRounds}
+            ROUND{"\n"} {currentRound} / {totalRounds}
           </Badge>
         </div>
       </div>
