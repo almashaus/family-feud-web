@@ -108,7 +108,7 @@ export const TeamSetup = ({ onEnterGame, onHostControls }: TeamSetupProps) => {
                   size="lg"
                   className="w-full h-16 text-2xl pulse-glow"
                 >
-                  ENTER THE GAME!
+                  START THE GAME!
                 </Button>
               </div>
               <div>

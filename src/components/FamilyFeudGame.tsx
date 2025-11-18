@@ -3,7 +3,6 @@ import { GameBoard } from "./GameBoard";
 import { HostControls } from "./HostControls";
 import { TeamSetup } from "./TeamSetup";
 import { type GameQuestion } from "@/data/questions";
-import { useToast } from "@/hooks/use-toast";
 
 interface GameState {
   currentQuestionIndex: number;
@@ -230,7 +229,7 @@ export const FamilyFeudGame = ({
   }
 
   return (
-    <div className="bg-gradient-bg sparkle-bg p-2">
+    <div className="min-h-screen bg-gradient-bg sparkle-bg p-2">
       <div className="space-y-2">
         <GameBoard
           key={timerKey}
@@ -239,6 +238,8 @@ export const FamilyFeudGame = ({
           onEndGame={handleEndGame}
           onRevealAnswer={handleRevealAnswer}
           onRevealAllAnswer={handleRevealAllAnswers}
+          onNextQuestion={handleNextQuestion}
+          onAddStrike={handleAddStrike}
           currentRound={gameState.currentRound}
           totalRounds={filteredQuestions.length}
           teams={gameState.teams}
@@ -251,15 +252,6 @@ export const FamilyFeudGame = ({
         <HostControls
           questions={filteredQuestions}
           onGameBegin={handleGameBegin}
-          onAddStrike={handleAddStrike}
-          onResetStrikes={handleResetStrikes}
-          onNextQuestion={handleNextQuestion}
-          onAwardPoints={handleAwardPoints}
-          onEndGame={handleEndGame}
-          answers={gameState.currentQuestion.answers}
-          currentRound={gameState.currentRound}
-          totalRounds={filteredQuestions.length}
-          isGameBegin={gameState.isGameBegin}
         />
       </div>
     </div>

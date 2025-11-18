@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef, memo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { XIcon } from "lucide-react";
-import { supabase } from "@/services/supabase";
-import { Badge } from "./ui/badge";
+import { ArrowRight, XIcon, SquareX, PauseCircle } from "lucide-react";
+import FamilyFeudLogo from "/images/FF-logo.png";
+import BonaLogo from "/images/BB-logo.png";
 import { useToast } from "@/hooks/use-toast";
 
 export interface Answer {
@@ -21,7 +21,9 @@ interface GameBoardProps {
     isRevealAnswer: boolean
   ) => void;
   onRevealAllAnswer: () => void;
+  onNextQuestion: () => void;
   onEndGame: (gameStarted: boolean, answer: Answer[]) => void;
+  onAddStrike: () => void;
   currentRound: number;
   totalRounds: number;
   teams: { team1: string; team2: string };
@@ -37,6 +39,8 @@ export const GameBoard = ({
   onRevealAnswer,
   onRevealAllAnswer,
   onEndGame,
+  onNextQuestion,
+  onAddStrike,
   currentRound,
   totalRounds,
   teams,
@@ -45,86 +49,195 @@ export const GameBoard = ({
   isHost,
   isGameBegin,
 }: GameBoardProps) => {
+  const [isRevealQuestion, setIsRevealQuestion] = useState(false);
   const [isRevealAnswer, setIsRevealAnswer] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState<1 | 2 | null>(null);
+  const [showStrikeIcon, setShowStrikeIcon] = useState(false);
+  const [timer, setTimer] = useState(60);
+  const [isPaused, setIsPaused] = useState(false);
 
-  const handleEndGame = (e: React.FormEvent) => {
+  const handleEndGame = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      const resetAnswers = answers.map((answer) => ({
+        ...answer,
+        revealed: false,
+      }));
+      onEndGame(false, resetAnswers);
+    },
+    [answers, onEndGame]
+  );
+
+  const handleRevealAllAnswer = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      setIsRevealAnswer(true);
+      onRevealAllAnswer();
+    },
+    [onRevealAllAnswer]
+  );
+
+  const handleOnStrikeClick = (e: React.FormEvent) => {
     e.preventDefault();
-    const resetAnswers = answers.map((answer) => ({
-      ...answer,
-      revealed: false,
-    }));
 
-    onEndGame(false, resetAnswers);
+    if (strikes < 3) {
+      setShowStrikeIcon(true);
+      const audio = new window.Audio("/sounds/time-out.mp3");
+      audio.play();
+      onAddStrike();
+      setTimeout(() => setShowStrikeIcon(false), 2000);
+    }
   };
 
-  const handleRevealAllAnswer = (e: React.FormEvent) => {
-    e.preventDefault();
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-    setIsRevealAnswer(true);
-    onRevealAllAnswer();
-  };
+  // Start/stop countdown
+  useEffect(() => {
+    const shouldRun = isRevealQuestion && !isPaused;
+
+    if (shouldRun) {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+
+      intervalRef.current = setInterval(() => {
+        setTimer((t) => (t > 0 ? t - 1 : 0));
+      }, 1000);
+    } else {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    }
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [isRevealQuestion, isPaused]);
+
+  // Play sound at 0
+  useEffect(() => {
+    if (timer === 0) {
+      new Audio("/sounds/time-out.mp3").play();
+    }
+  }, [timer]);
+
+  const Timer = memo(() => {
+    const isLastThree = timer <= 5 && timer > 0;
+    return (
+      <Card
+        className={`bg-gradient-board border-gold-border text-primary-foreground border-4 p-2 md:px-8 py-6 shadow-gold flex items-center justify-center ${
+          isLastThree ? "animate-pulse bg-red-700 border-red-600" : ""
+        } ${timer === 0 ? "bg-strike-red" : ""}`}
+      >
+        <div className="text-center">
+          <h2
+            className={`game-board-font md:text-4xl ${
+              !isRevealQuestion ? "text-gray-600" : ""
+            } ${isLastThree ? "text-red-300 drop-shadow-lg" : ""}`}
+          >
+            {timer}
+          </h2>
+        </div>
+      </Card>
+    );
+  });
+
+  const PauseButton = memo(() => (
+    <Card
+      className={`bg-gradient-primary text-primary-foreground hover:bg-primary-glow p-3 rounded-md border-4 border-gold-border ${
+        isRevealQuestion ? "cursor-pointer" : ""
+      }
+      `}
+      onClick={() => {
+        if (isRevealQuestion) setIsPaused((prev) => !prev);
+      }}
+    >
+      <PauseCircle
+        className={`w-8 h-8 ${
+          !isRevealQuestion
+            ? "text-gray-600"
+            : isPaused
+            ? "text-yellow-400"
+            : ""
+        }`}
+      />
+    </Card>
+  ));
+
+  const NextButton = memo(() => (
+    <Card
+      className={`bg-gradient-primary text-primary-foreground hover:bg-primary-glow p-3 rounded-md border-4 border-gold-border ${
+        currentRound !== totalRounds && "cursor-pointer"
+      } `}
+      onClick={onNextQuestion}
+    >
+      <ArrowRight
+        className={`w-8 h-8 ${
+          currentRound === totalRounds && "text-gray-600"
+        } `}
+      />
+    </Card>
+  ));
+
   return (
     <div className="flex flex-col gap-4 p-2 md:p-4">
+      <div className="flex flex-col md:flex-row justify-between">
+        <img
+          src={FamilyFeudLogo}
+          alt="Family Feud Logo"
+          className="hidden md:inline w-32 h-14"
+        />
+
+        <div className="flex flex-row justify-center items-center align-middle gap-4">
+          <PauseButton />
+          <Timer />
+          <NextButton />
+        </div>
+
+        <img
+          src={BonaLogo}
+          alt="Bona Banana Logo"
+          className="hidden md:inline w-28 h-16"
+        />
+      </div>
       {/* Question Display */}
       <div className="flex flex-col md:flex-row justify-between items-center align-middle space-y-2">
         <div className="space-y-2">
           <div className="flex flex-col gap-2 md:hidden">
-            {/* end game */}
             <Button variant="strike" onClick={handleEndGame}>
               END GAME
             </Button>
-            {/* Rounds */}
-            <Badge
-              variant="secondary"
-              className="game-board-font text-lg px-4 py-1"
-            >
-              ROUND {currentRound} / {totalRounds}
-            </Badge>
           </div>
-          {/* Timer */}
-
-          <Button
-            variant="gold"
-            onClick={handleRevealAllAnswer}
-            disabled={isRevealAnswer || !isGameBegin}
-            style={{ whiteSpace: "pre-line" }}
-            className="py-9"
-          >
-            REVEAL{"\n"}ANSWERS
-          </Button>
+          <Card className="bg-secondary text-secondary-foreground  game-board-font text-lg px-4 py-1">
+            ROUND {currentRound} / {totalRounds}
+          </Card>
         </div>
-        {/* question */}
-        <Card className="bg-gradient-primary border-gold-border border-4 px-2 md:px-1 py-4 md:mx-8 shadow-board">
+        <Card
+          className={`bg-gradient-primary border-gold-border border-4 px-2 md:px-1 py-4 md:mx-8 shadow-board ${
+            !isRevealQuestion ? "cursor-pointer" : ""
+          }`}
+          onClick={() => setIsRevealQuestion(true)}
+        >
           <h2
-            className={` ${
-              !isGameBegin && "invisible"
+            className={`${
+              !isRevealQuestion ? "invisible" : ""
             } game-board-font text-3xl lg:text-4xl text-center text-primary-foreground`}
           >
             {question}
           </h2>
         </Card>
         <div className="hidden md:flex md:flex-col gap-2 ">
-          {/* end game */}
           <Button variant="strike" onClick={handleEndGame} className="px-6">
             END GAME
           </Button>
-          {/* Rounds */}
-          <Badge
-            variant="secondary"
-            className="game-board-font flex justify-center text-center text-lg  px-4 py-1"
-            style={{ whiteSpace: "pre-line" }}
-          >
-            ROUND{"\n"} {currentRound} / {totalRounds}
-          </Badge>
         </div>
       </div>
-
       <div className="flex flex-col items-center gap-4">
-        {/* Answer Board */}
         <div className="flex justify-between items-center gap-3">
-          <div className=" hidden lg:flex">
-            <Team1
+          <div className="hidden lg:flex">
+            <MemoTeam1
               teams={teams}
               teamScores={teamScores}
               selected={isRevealAnswer ? null : selectedTeam === 1}
@@ -150,8 +263,8 @@ export const GameBoard = ({
             </div>
           </div>
 
-          <div className=" hidden lg:flex">
-            <Team2
+          <div className="hidden lg:flex">
+            <MemoTeam2
               teams={teams}
               teamScores={teamScores}
               selected={isRevealAnswer ? null : selectedTeam === 2}
@@ -163,7 +276,7 @@ export const GameBoard = ({
         {/* Score and Strikes Display */}
         <div className="flex justify-between lg:justify-center items-center w-full max-w-4xl">
           <div className="flex lg:hidden">
-            <Team1
+            <MemoTeam1
               teams={teams}
               teamScores={teamScores}
               selected={isRevealAnswer ? null : selectedTeam === 1}
@@ -179,7 +292,10 @@ export const GameBoard = ({
                 {[...Array(3)].map((_, i) => (
                   <div
                     key={i}
-                    className="w-10 h-10 rounded-full border-4 border-gold-border"
+                    className={`w-10 h-10 rounded-full border-4 border-gold-border cursor-pointer ${
+                      i === strikes ? "hover:border-red-600" : ""
+                    }`}
+                    onClick={handleOnStrikeClick}
                   >
                     {i < strikes && (
                       <XIcon
@@ -194,7 +310,7 @@ export const GameBoard = ({
           </Card>
 
           <div className="flex lg:hidden">
-            <Team2
+            <MemoTeam2
               teams={teams}
               teamScores={teamScores}
               selected={isRevealAnswer ? null : selectedTeam === 2}
@@ -203,6 +319,18 @@ export const GameBoard = ({
           </div>
         </div>
       </div>
+      {/* Strike Overlay */}
+      {showStrikeIcon && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          {[...Array(strikes)].map((_, i) => (
+            <SquareX
+              key={i}
+              className="text-red-600"
+              style={{ width: "20vw", height: "20vw" }}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 };
@@ -285,34 +413,33 @@ interface TeamProps {
   onSelect: () => void;
 }
 
-const Team1 = ({ teams, teamScores, selected, onSelect }: TeamProps) => {
-  return (
-    <Card
-      className={`${
-        selected ? "bg-gradient-gold" : "bg-gradient-board"
-      } border-gold-border text-primary-foreground border-4 p-2 md:p-6 shadow-gold cursor-pointer`}
-      onClick={onSelect}
-    >
-      <div className="text-center">
-        <h3 className="game-board-font md:text-2xl">{teams.team1}</h3>
-        <p className="game-board-font md:text-4xl">{teamScores.team1}</p>
-      </div>
-    </Card>
-  );
-};
+const Team1 = ({ teams, teamScores, selected, onSelect }: TeamProps) => (
+  <Card
+    className={`${
+      selected ? "bg-gradient-gold" : "bg-gradient-board"
+    } border-gold-border text-primary-foreground border-4 p-2 md:p-6 shadow-gold cursor-pointer`}
+    onClick={onSelect}
+  >
+    <div className="text-center">
+      <h3 className="game-board-font md:text-2xl">{teams.team1}</h3>
+      <p className="game-board-font md:text-4xl">{teamScores.team1}</p>
+    </div>
+  </Card>
+);
 
-const Team2 = ({ teams, teamScores, selected, onSelect }: TeamProps) => {
-  return (
-    <Card
-      className={`${
-        selected ? "bg-gradient-gold" : "bg-gradient-board"
-      } border-gold-border text-primary-foreground border-4 p-2 md:p-6 shadow-gold cursor-pointer`}
-      onClick={onSelect}
-    >
-      <div className="text-center">
-        <h3 className="game-board-font md:text-2xl">{teams.team2}</h3>
-        <p className="game-board-font md:text-4xl">{teamScores.team2}</p>
-      </div>
-    </Card>
-  );
-};
+const Team2 = ({ teams, teamScores, selected, onSelect }: TeamProps) => (
+  <Card
+    className={`${
+      selected ? "bg-gradient-gold" : "bg-gradient-board"
+    } border-gold-border text-primary-foreground border-4 p-2 md:p-6 shadow-gold cursor-pointer`}
+    onClick={onSelect}
+  >
+    <div className="text-center">
+      <h3 className="game-board-font md:text-2xl">{teams.team2}</h3>
+      <p className="game-board-font md:text-4xl">{teamScores.team2}</p>
+    </div>
+  </Card>
+);
+
+const MemoTeam1 = memo(Team1);
+const MemoTeam2 = memo(Team2);

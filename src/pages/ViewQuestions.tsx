@@ -70,11 +70,14 @@ const ViewQuestions = () => {
             <CardTitle className="text-3xl font-bold text-secondary">
               View Questions
             </CardTitle>
-            <Button
-              variant="ghost"
-              className="text-white hover:bg-white/10"
-              disabled
-            ></Button>
+            {/* Add Button */}
+            <div className="flex justify-center">
+              <Link to="/host/add-question">
+                <Button variant="gold" className="">
+                  <PlusIcon className="w-5 h-5" />
+                </Button>
+              </Link>
+            </div>
           </CardHeader>
 
           <CardContent className="space-y-6">
@@ -118,7 +121,7 @@ const ViewQuestions = () => {
               </div>
             ))}
 
-            {/* Save Button */}
+            {/* Add Button */}
             <div className="flex justify-center pt-4">
               <Link to="/host/add-question">
                 <Button variant="gold" className="md:px-24 py-6 text-lg gap-2">
