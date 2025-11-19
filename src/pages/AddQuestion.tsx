@@ -62,7 +62,6 @@ const AddQuestion = () => {
         .select();
 
       if (questionError) {
-        console.error("Error inserting question:", questionError);
         continue; // skip this question if error
       }
 
@@ -85,9 +84,7 @@ const AddQuestion = () => {
           .insert(sortedAnswers);
 
         if (answersError) {
-          console.error("Error inserting answers:", answersError);
         } else {
-          console.log(`✅ Added question: ${q.question}`);
         }
       }
     }

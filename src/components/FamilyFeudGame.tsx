@@ -83,6 +83,67 @@ export const FamilyFeudGame = ({
     [gameState.isHost, gameState.currentQuestion]
   );
 
+  const handleLeadPoints = useCallback(
+    async (team1Points: number, team2Points: number, teamNumber: number) => {
+      if (!gameState.isHost) return;
+
+      setGameState((prev) => {
+        if (team1Points && team2Points) {
+          const newTeamScores = { ...prev.teamScores };
+
+          if (teamNumber === 1) {
+            newTeamScores.team1 += team2Points;
+            newTeamScores.team2 -= team2Points;
+          } else {
+            newTeamScores.team2 += team1Points;
+            newTeamScores.team1 -= team1Points;
+          }
+
+          return {
+            ...prev,
+            teamScores: newTeamScores,
+          };
+        }
+        return prev;
+      });
+    },
+    [gameState.isHost, gameState.currentQuestion]
+  );
+
+  const handleStealPoints = useCallback(
+    async (
+      team1Points: number,
+      team2Points: number,
+      teamNumber: number,
+      answerIndex: number
+    ) => {
+      if (!gameState.isHost) return;
+
+      setGameState((prev) => {
+        const newQuestion = { ...prev.currentQuestion };
+        const answer = newQuestion.answers[answerIndex];
+        answer.revealed = true;
+
+        const newTeamScores = { ...prev.teamScores };
+
+        if (teamNumber === 1) {
+          newTeamScores.team1 += team1Points;
+          newTeamScores.team2 -= team2Points;
+        } else {
+          newTeamScores.team2 += team2Points;
+          newTeamScores.team1 -= team1Points;
+        }
+
+        return {
+          ...prev,
+          currentQuestion: newQuestion,
+          teamScores: newTeamScores,
+        };
+      });
+    },
+    [gameState.isHost, gameState.currentQuestion]
+  );
+
   const handleRevealAllAnswers = useCallback(async () => {
     if (!gameState.isHost) return;
 
@@ -102,6 +163,29 @@ export const FamilyFeudGame = ({
       };
     });
   }, [gameState.isHost, gameState.currentQuestion]);
+
+  const handleRevealAnswerEndRound = useCallback(
+    async (answerIndex: number) => {
+      if (!gameState.isHost) return;
+
+      setGameState((prev) => {
+        const newQuestion = { ...prev.currentQuestion };
+        const answer = newQuestion.answers[answerIndex];
+
+        if (answer && !answer.revealed) {
+          answer.revealed = true;
+          const newTeamScores = { ...prev.teamScores };
+
+          return {
+            ...prev,
+            currentQuestion: newQuestion,
+          };
+        }
+        return prev;
+      });
+    },
+    [gameState.isHost, gameState.currentQuestion]
+  );
 
   const handleGameBegin = useCallback(
     async (_isGameBegin: boolean, startId?: number, endId?: number) => {
@@ -238,6 +322,9 @@ export const FamilyFeudGame = ({
           onEndGame={handleEndGame}
           onRevealAnswer={handleRevealAnswer}
           onRevealAllAnswer={handleRevealAllAnswers}
+          onRevealAnswerEndRound={handleRevealAnswerEndRound}
+          onLeadPoints={handleLeadPoints}
+          onStealPoints={handleStealPoints}
           onNextQuestion={handleNextQuestion}
           onAddStrike={handleAddStrike}
           currentRound={gameState.currentRound}
