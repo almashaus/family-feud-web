@@ -316,6 +316,9 @@ export const GameBoard = ({
               isStealMode={isStealMode}
               isStealStrike={isStealStrike}
               setIsStealStrike={setIsStealStrike}
+              isWinner={
+                isRevealAllAnswerEndRound ? team1Point > team2Point : false
+              }
             />
           </div>
 
@@ -356,6 +359,8 @@ export const GameBoard = ({
                           1,
                           index
                         );
+                        setTeam1Point(team2Point + answer.points);
+                        setTeam2Point(0);
                         setIsRevealAllAnswer(true);
                       } else if (
                         isStealMode &&
@@ -368,6 +373,8 @@ export const GameBoard = ({
                           2,
                           index
                         );
+                        setTeam1Point(0);
+                        setTeam2Point(team1Point + answer.points);
                         setIsRevealAllAnswer(true);
                       }
                       if (!isStealMode && !isRevealAllAnswer) {
@@ -398,6 +405,9 @@ export const GameBoard = ({
               isStealMode={isStealMode}
               isStealStrike={isStealStrike}
               setIsStealStrike={setIsStealStrike}
+              isWinner={
+                isRevealAllAnswerEndRound ? team2Point > team1Point : false
+              }
             />
           </div>
         </div>
@@ -419,6 +429,9 @@ export const GameBoard = ({
               isStealMode={isStealMode}
               isStealStrike={isStealStrike}
               setIsStealStrike={setIsStealStrike}
+              isWinner={
+                isRevealAllAnswerEndRound ? team1Point > team2Point : false
+              }
             />
           </div>
           <Card className="bg-gradient-primary border-gold-border border-4 px-2 md:px-6 py-2 ">
@@ -462,6 +475,9 @@ export const GameBoard = ({
               isStealMode={isStealMode}
               isStealStrike={isStealStrike}
               setIsStealStrike={setIsStealStrike}
+              isWinner={
+                isRevealAllAnswerEndRound ? team2Point > team1Point : false
+              }
             />
           </div>
         </div>
@@ -571,6 +587,7 @@ interface TeamProps {
   isStealMode: boolean;
   isStealStrike: boolean;
   setIsStealStrike: (boo: boolean) => void;
+  isWinner: boolean;
 }
 
 const Team1 = ({
@@ -581,9 +598,16 @@ const Team1 = ({
   isStealMode,
   isStealStrike,
   setIsStealStrike,
+  isWinner,
 }: TeamProps) => (
   <Card
-    className={`${selected ? "bg-gradient-gold" : "bg-gradient-board"} 
+    className={`${
+      isWinner
+        ? "bg-gradient-green"
+        : selected
+        ? "bg-gradient-gold"
+        : "bg-gradient-board"
+    } 
     ${
       isStealMode && selected
         ? "shadow-[0_0_80px_rgba(220,38,38,1)] transition-shadow duration-300"
@@ -627,9 +651,16 @@ const Team2 = ({
   isStealMode,
   isStealStrike,
   setIsStealStrike,
+  isWinner,
 }: TeamProps) => (
   <Card
-    className={`${selected ? "bg-gradient-gold" : "bg-gradient-board"}     
+    className={`${
+      isWinner
+        ? "bg-gradient-green"
+        : selected
+        ? "bg-gradient-gold"
+        : "bg-gradient-board"
+    }     
     ${
       isStealMode && selected
         ? "shadow-[0_0_80px_rgba(220,38,38,1)] transition-shadow duration-300"
@@ -648,7 +679,7 @@ const Team2 = ({
       <p className="game-board-font md:text-4xl">{teamScores.team2}</p>
       {isStealMode && selected && (
         <div
-          className={`w-10 h-10 rounded-full border-4 border-gold-border cursor-pointer "hover:border-red-600" `}
+          className={`w-10 h-10 rounded-full border-4 border-red-500 cursor-pointer "hover:border-red-600" `}
           onClick={() => setIsStealStrike(true)}
         >
           {isStealStrike && (
