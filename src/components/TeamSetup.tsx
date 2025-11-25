@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import FamilyFeudLogo from "/images/FF-logo.png";
 import BonaLogo from "/images/BB-logo.png";
-import LevelUpLogo from "/images/LVLUP-logo.png";
 import Pattern from "/images/FF-pattern.png";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -49,11 +48,6 @@ export const TeamSetup = ({ onEnterGame, onHostControls }: TeamSetupProps) => {
               />
 
               <div className="flex flex-row justify-center items-center space-x-4">
-                <img
-                  src={LevelUpLogo}
-                  alt="Level Up Logo"
-                  className="w-36 object-cover mt-5"
-                />
                 <img
                   src={BonaLogo}
                   alt="Bona Banana Logo"
