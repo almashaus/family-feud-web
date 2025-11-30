@@ -13,9 +13,14 @@ import { useAuth } from "@/hooks/useAuth";
 interface TeamSetupProps {
   onEnterGame: (team1Name: string, team2Name: string) => void;
   onHostControls: (isHost: boolean) => void;
+  onSignOut: (gameEntered: boolean) => void;
 }
 
-export const TeamSetup = ({ onEnterGame, onHostControls }: TeamSetupProps) => {
+export const TeamSetup = ({
+  onEnterGame,
+  onHostControls,
+  onSignOut,
+}: TeamSetupProps) => {
   const [team1Name, setTeam1Name] = useState("Heroes");
   const [team2Name, setTeam2Name] = useState("Champions");
 
@@ -27,6 +32,12 @@ export const TeamSetup = ({ onEnterGame, onHostControls }: TeamSetupProps) => {
       onEnterGame(team1Name.trim(), team2Name.trim());
       onHostControls(true);
     }
+  };
+
+  const handleSignOut = (e: React.FormEvent) => {
+    e.preventDefault();
+    signOut();
+    onSignOut(false);
   };
 
   return (
@@ -120,7 +131,7 @@ export const TeamSetup = ({ onEnterGame, onHostControls }: TeamSetupProps) => {
               </div>
               <div>
                 <Button
-                  onClick={signOut}
+                  onClick={handleSignOut}
                   variant="link"
                   className="text-lg text-primary"
                 >

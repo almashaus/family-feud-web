@@ -126,9 +126,19 @@ export const GameBoard = ({
       setIsRevealAllAnswerEndRound(true);
     } else if (isRevealAllAnswer) {
       setIsRevealAllAnswerEndRound(true);
-      setDialogOpen(true);
+      setTimeout(() => {
+        setDialogOpen(true);
+      }, 2000);
     }
   }, [isStealStrike, isRevealAllAnswer]);
+
+  useEffect(() => {
+    if (dialogOpen) {
+      setTimeout(() => {
+        setDialogOpen(false);
+      }, 2000);
+    }
+  }, [dialogOpen]);
 
   const handleEndGame = useCallback(
     (e: React.FormEvent) => {
@@ -288,6 +298,12 @@ export const GameBoard = ({
                   number={index + 1}
                   answer={answer}
                   onReveal={() => {
+                    if (
+                      answers.filter((a) => a.revealed).length + 1 ===
+                      answers.length
+                    ) {
+                      setIsRevealAllAnswerEndRound(true);
+                    }
                     if (isRevealAllAnswerEndRound) {
                       onRevealAnswerEndRound(index);
                     } else {
@@ -460,11 +476,14 @@ export const GameBoard = ({
             ))}
           </div>
         ))}
-      <DialogMessage
-        dialogOpen={dialogOpen}
-        setDialogOpen={setDialogOpen}
-        team={team1Point > team2Point ? teams.team1 : teams.team2}
-      />
+      {/* show reveal answers */}
+      {dialogOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80">
+          <span className="text-9xl font-extrabold text-gold-glow">
+            REVEAL ANSWER
+          </span>
+        </div>
+      )}
     </div>
   );
 };
@@ -662,42 +681,3 @@ const Team2 = ({
 
 const MemoTeam1 = memo(Team1);
 const MemoTeam2 = memo(Team2);
-
-const DialogMessage = ({
-  dialogOpen,
-  setDialogOpen,
-  team,
-}: {
-  dialogOpen: boolean;
-  setDialogOpen: (open: boolean) => void;
-  team: string;
-}) => (
-  <div>
-    {/* --------- Alert Dialog -------- */}
-    <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle className="text-lg font-bold mb-2">
-            Winner of the round
-          </DialogTitle>
-          <DialogDescription></DialogDescription>
-        </DialogHeader>
-        <div className="text-lg">
-          The winner of this round is{" "}
-          <span className="text-2xl font-semibold text-gold-glow">{team}</span>{" "}
-          🎉
-        </div>
-        <DialogFooter>
-          <Button
-            variant="game"
-            onClick={() => {
-              setDialogOpen(false);
-            }}
-          >
-            Reveal Answers Mode
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  </div>
-);

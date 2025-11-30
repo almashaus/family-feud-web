@@ -23,6 +23,7 @@ export const FamilyFeudGame = ({
   gameQuestions: GameQuestion[];
 }) => {
   const { user } = useAuth();
+
   if (!user) {
     return;
   }
@@ -314,40 +315,41 @@ export const FamilyFeudGame = ({
       <TeamSetup
         onEnterGame={handleEnterGame}
         onHostControls={handleHostPage}
+        onSignOut={handleEndGame}
       />
     );
-  }
+  } else {
+    return (
+      <div className="min-h-screen bg-gradient-bg sparkle-bg p-2">
+        <div className="space-y-2">
+          <GameBoard
+            key={timerKey}
+            question={gameState.currentQuestion}
+            answers={gameState.currentQuestion.answers}
+            onEndGame={handleEndGame}
+            onRevealAnswer={handleRevealAnswer}
+            onRevealAllAnswer={handleRevealAllAnswers}
+            onRevealAnswerEndRound={handleRevealAnswerEndRound}
+            onLeadPoints={handleLeadPoints}
+            onStealPoints={handleStealPoints}
+            onNextQuestion={handleNextQuestion}
+            onAddStrike={handleAddStrike}
+            currentRound={gameState.currentRound}
+            totalRounds={filteredQuestions.length}
+            teams={gameState.teams}
+            teamScores={gameState.teamScores}
+            strikes={gameState.strikes}
+            isHost={gameState.isHost}
+            isGameBegin={gameState.isGameBegin}
+          />
 
-  return (
-    <div className="min-h-screen bg-gradient-bg sparkle-bg p-2">
-      <div className="space-y-2">
-        <GameBoard
-          key={timerKey}
-          question={gameState.currentQuestion}
-          answers={gameState.currentQuestion.answers}
-          onEndGame={handleEndGame}
-          onRevealAnswer={handleRevealAnswer}
-          onRevealAllAnswer={handleRevealAllAnswers}
-          onRevealAnswerEndRound={handleRevealAnswerEndRound}
-          onLeadPoints={handleLeadPoints}
-          onStealPoints={handleStealPoints}
-          onNextQuestion={handleNextQuestion}
-          onAddStrike={handleAddStrike}
-          currentRound={gameState.currentRound}
-          totalRounds={filteredQuestions.length}
-          teams={gameState.teams}
-          teamScores={gameState.teamScores}
-          strikes={gameState.strikes}
-          isHost={gameState.isHost}
-          isGameBegin={gameState.isGameBegin}
-        />
-
-        <HostControls
-          questions={filteredQuestions}
-          onGameBegin={handleGameBegin}
-          gameEntered={gameState.gameEntered}
-        />
+          <HostControls
+            questions={filteredQuestions}
+            onGameBegin={handleGameBegin}
+            gameEntered={gameState.gameEntered}
+          />
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
 };
