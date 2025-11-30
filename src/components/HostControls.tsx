@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -21,10 +21,15 @@ import { GameQuestion } from "@/data/questions";
 interface HostControlsProps {
   onGameBegin: (isGameBegin: boolean, startId?: number, endId?: number) => void;
   questions: GameQuestion[]; // Add this prop for available questions
+  gameEntered: boolean;
 }
 
-export const HostControls = ({ onGameBegin, questions }: HostControlsProps) => {
-  const [dialogOpen, setDialogOpen] = useState(true);
+export const HostControls = ({
+  onGameBegin,
+  questions,
+  gameEntered = false,
+}: HostControlsProps) => {
+  const [dialogOpen, setDialogOpen] = useState(gameEntered);
   const [startId, setStartId] = useState<number | undefined>(undefined);
   const [endId, setEndId] = useState<number | undefined>(undefined);
 

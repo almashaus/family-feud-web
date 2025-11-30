@@ -4,7 +4,18 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, XIcon, SquareX, PauseCircle } from "lucide-react";
 import FamilyFeudLogo from "/images/FF-logo.png";
 import BonaLogo from "/images/BB-logo.png";
+import MiraiLogo from "/images/Mirai-logo.png";
 import { useToast } from "@/hooks/use-toast";
+import { GameQuestion } from "@/data/questions";
+import {
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  DialogHeader,
+  DialogFooter,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 export interface Answer {
   text: string;
@@ -13,7 +24,7 @@ export interface Answer {
 }
 
 interface GameBoardProps {
-  question: string;
+  question: GameQuestion;
   answers: Answer[];
   onRevealAnswer: (
     index: number,
@@ -76,8 +87,7 @@ export const GameBoard = ({
   const [isRevealAllAnswer, setIsRevealAllAnswer] = useState(false);
   const [isRevealAllAnswerEndRound, setIsRevealAllAnswerEndRound] =
     useState(false);
-  const [timer, setTimer] = useState(60);
-  const [isPaused, setIsPaused] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   useEffect(() => {
     if (determineCounter >= 2) {
@@ -109,10 +119,14 @@ export const GameBoard = ({
   useEffect(() => {
     if (isStealStrike) {
       setShowStrikeIcon(true);
-      setTimeout(() => setShowStrikeIcon(false), 2000);
-    }
-    if (isStealStrike || isRevealAllAnswer) {
+      setTimeout(() => {
+        setShowStrikeIcon(false);
+        setDialogOpen(true);
+      }, 2000);
       setIsRevealAllAnswerEndRound(true);
+    } else if (isRevealAllAnswer) {
+      setIsRevealAllAnswerEndRound(true);
+      setDialogOpen(true);
     }
   }, [isStealStrike, isRevealAllAnswer]);
 
@@ -147,89 +161,15 @@ export const GameBoard = ({
     }
   };
 
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Start/stop countdown
-  useEffect(() => {
-    const shouldRun = isRevealQuestion && !isPaused;
-
-    if (shouldRun) {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-
-      intervalRef.current = setInterval(() => {
-        setTimer((t) => (t > 0 ? t - 1 : 0));
-      }, 1000);
-    } else {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    }
-
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    };
-  }, [isRevealQuestion, isPaused]);
-
-  // Play sound at 0
-  useEffect(() => {
-    if (timer === 0) {
-      new Audio("/sounds/time-out.mp3").play();
-    }
-  }, [timer]);
-
-  const Timer = memo(() => {
-    const isLastThree = timer <= 5 && timer > 0;
-    return (
-      <Card
-        className={`bg-gradient-board border-gold-border text-primary-foreground border-4 p-2 md:px-8 py-6 shadow-gold flex items-center justify-center ${
-          isLastThree ? "animate-pulse bg-red-700 border-red-600" : ""
-        } ${timer === 0 ? "bg-strike-red" : ""}`}
-      >
-        <div className="text-center">
-          <h2
-            className={`game-board-font md:text-4xl ${
-              !isRevealQuestion ? "text-gray-600" : ""
-            } ${isLastThree ? "text-red-300 drop-shadow-lg" : ""}`}
-          >
-            {timer}
-          </h2>
-        </div>
-      </Card>
-    );
-  });
-
-  const PauseButton = memo(() => (
-    <Card
-      className={`bg-gradient-primary text-primary-foreground hover:bg-primary-glow p-3 rounded-md border-4 border-gold-border ${
-        isRevealQuestion ? "cursor-pointer" : ""
-      }
-      `}
-      onClick={() => {
-        if (isRevealQuestion) setIsPaused((prev) => !prev);
-      }}
-    >
-      <PauseCircle
-        className={`w-8 h-8 ${
-          !isRevealQuestion
-            ? "text-gray-600"
-            : isPaused
-            ? "text-yellow-400"
-            : ""
-        }`}
-      />
-    </Card>
-  ));
-
   const NextButton = memo(() => (
     <Card
       className={`bg-gradient-primary text-primary-foreground hover:bg-primary-glow p-3 rounded-md border-4 border-gold-border ${
         currentRound !== totalRounds && "cursor-pointer"
       } `}
-      onClick={onNextQuestion}
+      onClick={() => {
+        onNextQuestion();
+        setDialogOpen(false);
+      }}
     >
       <ArrowRight
         className={`w-8 h-8 ${
@@ -241,23 +181,31 @@ export const GameBoard = ({
 
   return (
     <div className="flex flex-col gap-4 p-2 md:p-4">
-      <div className="flex flex-col md:flex-row justify-between">
+      <div className="flex flex-col md:flex-row justify-between items-center">
         <img
-          src={FamilyFeudLogo}
-          alt="Family Feud Logo"
-          className="hidden md:inline w-32 h-14"
+          src={MiraiLogo}
+          alt="Mirai Logo"
+          className="hidden md:inline w-32 h-18"
         />
 
         <div className="flex flex-row justify-center items-center align-middle gap-4">
-          <PauseButton />
-          <Timer />
+          <Card
+            className="bg-gradient-board border-gold-border text-primary-foreground border-4 p-2 md:px-8 py-6 
+          shadow-gold flex items-center justify-center"
+          >
+            <div className="text-center px-6 md:px-0">
+              <h2 className={`game-board-font text-2xl md:text-4xl `}>
+                {question.id}
+              </h2>
+            </div>
+          </Card>
           <NextButton />
         </div>
 
         <img
           src={BonaLogo}
           alt="Bona Banana Logo"
-          className="hidden md:inline w-28 h-16"
+          className="hidden md:inline w-24 h-16"
         />
       </div>
       {/* Question Display */}
@@ -273,7 +221,7 @@ export const GameBoard = ({
           </Card>
         </div>
         <Card
-          className={`bg-gradient-primary border-gold-border border-4 px-2 md:px-4 py-4 md:mx-8 shadow-board ${
+          className={`bg-gradient-primary border-gold-border border-4 px-2 md:px-4 py-4 md:mx-8 xl:px-24 shadow-board ${
             !isRevealQuestion ? "cursor-pointer" : ""
           }`}
           onClick={() => setIsRevealQuestion(true)}
@@ -282,8 +230,9 @@ export const GameBoard = ({
             className={`${
               !isRevealQuestion ? "invisible" : ""
             } game-board-font text-3xl lg:text-4xl text-center text-primary-foreground`}
+            style={{ whiteSpace: "pre-line" }}
           >
-            {question}
+            {question.question.replace(" - ", "\n")}
           </h2>
         </Card>
         <div className="hidden md:flex md:flex-col gap-2 ">
@@ -292,13 +241,7 @@ export const GameBoard = ({
           </Button>
         </div>
       </div>
-      <div className="flex justify-center">
-        {(isRevealAllAnswer || isStealStrike) && (
-          <p className="text-xl font-bold px-10 py-3 animate-pulse text-red-300">
-            REVEAL ANSWERS
-          </p>
-        )}
-      </div>
+
       <div className="flex flex-col items-center gap-4">
         <div className="flex justify-between items-center gap-3">
           <div className="hidden lg:flex">
@@ -322,8 +265,23 @@ export const GameBoard = ({
             />
           </div>
 
-          <div className="bg-gradient-board border-gold-border border-8 rounded-3xl p-3 md:p-4 shadow-board ">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 ">
+          <div
+            className={`${
+              isRevealAllAnswer || isStealStrike
+                ? "bg-gray-200"
+                : isStealMode
+                ? "bg-red-500"
+                : "bg-gradient-board "
+            } border-gold-border border-8 rounded-3xl p-3 md:p-4 shadow-board`}
+          >
+            <div
+              className={`grid grid-cols-1 md:grid-cols-2 md:grid-flow-col gap-4`}
+              style={{
+                gridTemplateRows: `repeat(${Math.ceil(
+                  answers.length / 2
+                )}, minmax(0, 1fr))`,
+              }}
+            >
               {(Array.isArray(answers) ? answers : []).map((answer, index) => (
                 <AnswerSlot
                   key={index}
@@ -502,6 +460,11 @@ export const GameBoard = ({
             ))}
           </div>
         ))}
+      <DialogMessage
+        dialogOpen={dialogOpen}
+        setDialogOpen={setDialogOpen}
+        team={team1Point > team2Point ? teams.team1 : teams.team2}
+      />
     </div>
   );
 };
@@ -559,8 +522,11 @@ const AnswerSlot = ({
     >
       {answer.revealed ? (
         <div className="flex items-center justify-between h-full px-6 reveal-animation">
-          <span className="game-board-font text-lg lg:text-2xl text-primary-foreground uppercase">
-            {answer.text}
+          <span
+            className="game-board-font text-lg lg:text-2xl text-primary-foreground uppercase"
+            style={{ whiteSpace: "pre-line" }}
+          >
+            {answer.text.replace(" - ", "\n")}
           </span>
           <div className="bg-gold-border text-secondary-foreground rounded-full w-12 h-12 flex items-center justify-center ms-2">
             <span className="game-board-font text-md lg:text-xl">
@@ -696,3 +662,42 @@ const Team2 = ({
 
 const MemoTeam1 = memo(Team1);
 const MemoTeam2 = memo(Team2);
+
+const DialogMessage = ({
+  dialogOpen,
+  setDialogOpen,
+  team,
+}: {
+  dialogOpen: boolean;
+  setDialogOpen: (open: boolean) => void;
+  team: string;
+}) => (
+  <div>
+    {/* --------- Alert Dialog -------- */}
+    <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="text-lg font-bold mb-2">
+            Winner of the round
+          </DialogTitle>
+          <DialogDescription></DialogDescription>
+        </DialogHeader>
+        <div className="text-lg">
+          The winner of this round is{" "}
+          <span className="text-2xl font-semibold text-gold-glow">{team}</span>{" "}
+          🎉
+        </div>
+        <DialogFooter>
+          <Button
+            variant="game"
+            onClick={() => {
+              setDialogOpen(false);
+            }}
+          >
+            Reveal Answers Mode
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  </div>
+);

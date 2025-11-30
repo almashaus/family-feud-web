@@ -80,16 +80,18 @@ const ViewQuestions = () => {
             </div>
           </CardHeader>
 
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-12">
             {questions?.map((item, index) => (
               <div key={index}>
                 {/* Question */}
-                <div className="flex flex-row justify-between bg-gradient-primary border-gold-border border-4 rounded-lg mb-2 p-4 space-x-1 shadow-board text-xl font-semibold">
+                <div className="flex flex-row justify-between bg-gradient-primary border-gold-border border-4 rounded-lg mb-4 p-4 space-x-1 shadow-board text-xl font-semibold">
                   <div className="flex">
                     <div className="bg-secondary flex flex-row justify-center rounded-full w-8 h-8 me-2 text-xl font-semibold">
                       {item.id}
                     </div>
-                    <span>{item.question} </span>
+                    <span style={{ whiteSpace: "pre-line" }}>
+                      {item.question.replace(" - ", "\n")}{" "}
+                    </span>
                   </div>
                   <Button
                     onClick={() => handleDeleteQuestion(item.id)}
@@ -102,21 +104,25 @@ const ViewQuestions = () => {
                 </div>
 
                 {/* Answers */}
-                <div className="space-y-4 mx-4">
-                  {item.answers.map((answer, index) => (
-                    <div
-                      key={index}
-                      className="flex gap-2 md:gap-3 items-center"
-                    >
-                      <div className="text-yellow-500 text-lg p-2">
-                        {index + 1}
-                      </div>
-                      <div className="flex-1 font-semibold">{answer.text}</div>
-                      <div className="w-8 h-8 rounded-full flex justify-center items-center align-middle bg-secondary text-secondary-foreground font-semibold">
-                        {answer.points || ""}
-                      </div>
-                    </div>
-                  ))}
+                <div className="bg-gradient-board border-gold-border border-8 rounded-3xl p-3 md:p-4 shadow-board">
+                  <div
+                    className={`grid grid-cols-1 md:grid-cols-2 md:grid-flow-col gap-4`}
+                    style={{
+                      gridTemplateRows: `repeat(${Math.ceil(
+                        item.answers.length / 2
+                      )}, minmax(0, 1fr))`,
+                    }}
+                  >
+                    {(Array.isArray(item.answers) ? item.answers : []).map(
+                      (answer, index) => (
+                        <AnswerSlot
+                          key={index}
+                          number={index + 1}
+                          answer={answer}
+                        />
+                      )
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
@@ -138,3 +144,25 @@ const ViewQuestions = () => {
 };
 
 export default ViewQuestions;
+
+const AnswerSlot = ({ number, answer }: { number: number; answer: Answer }) => {
+  return (
+    <div
+      className="
+        relative h-20 min-w-50 bg-gradient-primary shadow-glow-answer 
+        border-4 border-primary-foreground rounded-xl overflow-hidden"
+    >
+      <div className="flex items-center justify-between h-full px-2 reveal-animation">
+        <span
+          className="game-board-font text-sm text-primary-foreground uppercase"
+          style={{ whiteSpace: "pre-line" }}
+        >
+          {answer.text.replace(" - ", "\n")}
+        </span>
+        <div className="bg-gold-border text-secondary-foreground rounded-full w-8 h-8 flex items-center justify-center ms-2">
+          <span className="game-board-font text-sm">{answer.points}</span>
+        </div>
+      </div>
+    </div>
+  );
+};

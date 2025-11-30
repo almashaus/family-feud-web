@@ -3,6 +3,7 @@ import { GameBoard } from "./GameBoard";
 import { HostControls } from "./HostControls";
 import { TeamSetup } from "./TeamSetup";
 import { type GameQuestion } from "@/data/questions";
+import { useAuth } from "@/hooks/useAuth";
 
 interface GameState {
   currentQuestionIndex: number;
@@ -21,6 +22,11 @@ export const FamilyFeudGame = ({
 }: {
   gameQuestions: GameQuestion[];
 }) => {
+  const { user } = useAuth();
+  if (!user) {
+    return;
+  }
+
   if (!gameQuestions || gameQuestions.length === 0) {
     return <div>Loading game...</div>;
   }
@@ -317,7 +323,7 @@ export const FamilyFeudGame = ({
       <div className="space-y-2">
         <GameBoard
           key={timerKey}
-          question={gameState.currentQuestion.question}
+          question={gameState.currentQuestion}
           answers={gameState.currentQuestion.answers}
           onEndGame={handleEndGame}
           onRevealAnswer={handleRevealAnswer}
@@ -339,6 +345,7 @@ export const FamilyFeudGame = ({
         <HostControls
           questions={filteredQuestions}
           onGameBegin={handleGameBegin}
+          gameEntered={gameState.gameEntered}
         />
       </div>
     </div>
