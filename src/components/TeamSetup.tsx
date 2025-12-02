@@ -5,10 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import FamilyFeudLogo from "/images/FF-logo.png";
 import BonaLogo from "/images/BB-logo.png";
-import MiraiLogo from "/images/Mirai-logo.png";
 import Pattern from "/images/FF-pattern.png";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { logo } from "@/lib/tools/logos";
 
 interface TeamSetupProps {
   onEnterGame: (team1Name: string, team2Name: string) => void;
@@ -61,8 +61,8 @@ export const TeamSetup = ({
 
               <div className="flex flex-row justify-center align-middle items-center space-x-10">
                 <img
-                  src={MiraiLogo}
-                  alt="Mirai Logo"
+                  src={logo(user.user_metadata.display_name)}
+                  alt="Logo"
                   className="w-28 mt-4 object-cover "
                 />
                 <img

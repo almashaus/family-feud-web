@@ -152,7 +152,7 @@ const AnswerSlot = ({ number, answer }: { number: number; answer: Answer }) => {
         relative h-20 min-w-50 bg-gradient-primary shadow-glow-answer 
         border-4 border-primary-foreground rounded-xl overflow-hidden"
     >
-      <div className="flex items-center justify-between h-full px-2 reveal-animation">
+      <div className="flex items-center justify-between h-full px-2">
         <span
           className="game-board-font text-sm text-primary-foreground uppercase"
           style={{ whiteSpace: "pre-line" }}

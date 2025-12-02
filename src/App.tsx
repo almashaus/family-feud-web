@@ -10,6 +10,7 @@ import ViewQuestions from "./pages/ViewQuestions";
 import LoginPage from "./pages/LoginPage";
 import { AuthProvider } from "./hooks/useAuth";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import CreateAccount from "./pages/CreateAccount";
 
 const queryClient = new QueryClient();
 
@@ -43,6 +44,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <AddQuestion />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/create-account"
+              element={
+                <ProtectedRoute>
+                  <CreateAccount />
                 </ProtectedRoute>
               }
             />

@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, XIcon, SquareX, PauseCircle } from "lucide-react";
 import FamilyFeudLogo from "/images/FF-logo.png";
 import BonaLogo from "/images/BB-logo.png";
-import MiraiLogo from "/images/Mirai-logo.png";
 import { useToast } from "@/hooks/use-toast";
 import { GameQuestion } from "@/data/questions";
 import {
@@ -16,6 +15,8 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { useAuth } from "@/hooks/useAuth";
+import { logo } from "@/lib/tools/logos";
 
 export interface Answer {
   text: string;
@@ -88,6 +89,8 @@ export const GameBoard = ({
   const [isRevealAllAnswerEndRound, setIsRevealAllAnswerEndRound] =
     useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+
+  const { user } = useAuth();
 
   useEffect(() => {
     if (determineCounter >= 2) {
@@ -193,7 +196,7 @@ export const GameBoard = ({
     <div className="flex flex-col gap-4 p-2 md:p-4">
       <div className="flex flex-col md:flex-row justify-between items-center">
         <img
-          src={MiraiLogo}
+          src={logo(user.user_metadata.display_name)}
           alt="Mirai Logo"
           className="hidden md:inline w-32 h-18"
         />
