@@ -9,9 +9,15 @@ import Pattern from "/images/FF-pattern.png";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { logo } from "@/lib/tools/logos";
+import { CheckSquare, CheckSquare2, Square } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface TeamSetupProps {
-  onEnterGame: (team1Name: string, team2Name: string) => void;
+  onEnterGame: (team1Name: string, team2Name: string, isAuto: boolean) => void;
   onHostControls: (isHost: boolean) => void;
   onSignOut: (gameEntered: boolean) => void;
 }
@@ -23,13 +29,14 @@ export const TeamSetup = ({
 }: TeamSetupProps) => {
   const [team1Name, setTeam1Name] = useState("Heroes");
   const [team2Name, setTeam2Name] = useState("Champions");
+  const [isAuto, setIsAuto] = useState(true);
 
   const { user, signOut } = useAuth();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (team1Name.trim() && team2Name.trim()) {
-      onEnterGame(team1Name.trim(), team2Name.trim());
+      onEnterGame(team1Name.trim(), team2Name.trim(), isAuto);
       onHostControls(true);
     }
   };
@@ -109,6 +116,63 @@ export const TeamSetup = ({
                   required
                 />
               </div>
+            </div>
+            <div className="flex flex-row justify-evenly items-center align-middle">
+              <Card className="bg-gradient-primary text-primary-foreground hover:bg-primary-glow p-3 rounded-md border-2 border-gold-border">
+                <div className="flex flex-row justify-start items-center align-middle">
+                  <div
+                    className="cursor-pointer"
+                    onClick={() => setIsAuto(true)}
+                  >
+                    {isAuto ? (
+                      <CheckSquare className="w-8 h-8 me-2 text-gold-glow" />
+                    ) : (
+                      <Square className="w-8 h-8 me-2 text-gold-glow" />
+                    )}
+                  </div>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <p
+                        className={`text-xl md:text-2xl font-bold ${
+                          !isAuto && "text-gray-400"
+                        }`}
+                      >
+                        Auto
+                      </p>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Scores calculated automatically</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+
+                <div className="flex flex-row justify-start items-center align-middle">
+                  <div
+                    className="cursor-pointer"
+                    onClick={() => setIsAuto(false)}
+                  >
+                    {isAuto ? (
+                      <Square className="w-8 h-8 me-2 text-gold-glow" />
+                    ) : (
+                      <CheckSquare className="w-8 h-8 me-2 text-gold-glow" />
+                    )}
+                  </div>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <p
+                        className={`text-xl md:text-2xl font-bold ${
+                          isAuto && "text-gray-400"
+                        }`}
+                      >
+                        Manual
+                      </p>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Calculating scores manually</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+              </Card>
             </div>
 
             <div className="flex flex-col gap-4 pt-3">

@@ -4,6 +4,7 @@ import { HostControls } from "./HostControls";
 import { TeamSetup } from "./TeamSetup";
 import { type GameQuestion } from "@/data/questions";
 import { useAuth } from "@/hooks/useAuth";
+import { GameBoardManual } from "./GameBoardManual";
 
 interface GameState {
   currentQuestionIndex: number;
@@ -11,6 +12,7 @@ interface GameState {
   teamScores: { team1: number; team2: number };
   strikes: number;
   gameEntered: boolean;
+  isAuto: boolean;
   isHost: boolean;
   isGameBegin: boolean;
   teams: { team1: string; team2: string };
@@ -38,6 +40,7 @@ export const FamilyFeudGame = ({
     teamScores: { team1: 0, team2: 0 },
     strikes: 0,
     gameEntered: false,
+    isAuto: true,
     isHost: true,
     isGameBegin: false,
     teams: { team1: "Team 1", team2: "Team 2" },
@@ -55,32 +58,26 @@ export const FamilyFeudGame = ({
   }, [filteredQuestions]);
 
   const handleRevealAnswer = useCallback(
-    async (
-      answerIndex: number,
-      teamNumber: number,
-      isRevealAnswer: boolean
-    ) => {
+    async (answerIndex: number, teamNumber: number) => {
       if (!gameState.isHost) return;
 
       setGameState((prev) => {
-        const newQuestion = { ...prev.currentQuestion };
-        const answer = newQuestion.answers[answerIndex];
+        const theQuestion = { ...prev.currentQuestion };
+        const answer = theQuestion.answers[answerIndex];
 
         if (answer && !answer.revealed) {
           answer.revealed = true;
           const newTeamScores = { ...prev.teamScores };
 
-          if (!isRevealAnswer) {
-            if (teamNumber === 1) {
-              newTeamScores.team1 += answer.points;
-            } else {
-              newTeamScores.team2 += answer.points;
-            }
+          if (teamNumber === 1) {
+            newTeamScores.team1 += answer.points;
+          } else {
+            newTeamScores.team2 += answer.points;
           }
 
           return {
             ...prev,
-            currentQuestion: newQuestion,
+            currentQuestion: theQuestion,
             teamScores: newTeamScores,
           };
         }
@@ -127,8 +124,8 @@ export const FamilyFeudGame = ({
       if (!gameState.isHost) return;
 
       setGameState((prev) => {
-        const newQuestion = { ...prev.currentQuestion };
-        const answer = newQuestion.answers[answerIndex];
+        const theQuestion = { ...prev.currentQuestion };
+        const answer = theQuestion.answers[answerIndex];
         answer.revealed = true;
 
         const newTeamScores = { ...prev.teamScores };
@@ -143,9 +140,34 @@ export const FamilyFeudGame = ({
 
         return {
           ...prev,
-          currentQuestion: newQuestion,
+          currentQuestion: theQuestion,
           teamScores: newTeamScores,
         };
+      });
+    },
+    [gameState.isHost, gameState.currentQuestion]
+  );
+
+  const handleScoreChange = useCallback(
+    async (score: number, teamNumber: number) => {
+      if (!gameState.isHost) return;
+
+      setGameState((prev) => {
+        if (score && teamNumber) {
+          const newTeamScores = { ...prev.teamScores };
+
+          if (teamNumber === 1) {
+            newTeamScores.team1 = score;
+          } else {
+            newTeamScores.team2 = score;
+          }
+
+          return {
+            ...prev,
+            teamScores: newTeamScores,
+          };
+        }
+        return prev;
       });
     },
     [gameState.isHost, gameState.currentQuestion]
@@ -155,10 +177,10 @@ export const FamilyFeudGame = ({
     if (!gameState.isHost) return;
 
     setGameState((prev) => {
-      const newQuestion = { ...prev.currentQuestion };
+      const theQuestion = { ...prev.currentQuestion };
 
-      for (let i = 0; i < newQuestion.answers.length; i++) {
-        const answer = newQuestion.answers[i];
+      for (let i = 0; i < theQuestion.answers.length; i++) {
+        const answer = theQuestion.answers[i];
 
         if (answer && !answer.revealed) {
           answer.revealed = true;
@@ -166,7 +188,7 @@ export const FamilyFeudGame = ({
       }
       return {
         ...prev,
-        currentQuestion: newQuestion,
+        currentQuestion: theQuestion,
       };
     });
   }, [gameState.isHost, gameState.currentQuestion]);
@@ -176,16 +198,15 @@ export const FamilyFeudGame = ({
       if (!gameState.isHost) return;
 
       setGameState((prev) => {
-        const newQuestion = { ...prev.currentQuestion };
-        const answer = newQuestion.answers[answerIndex];
+        const theQuestion = { ...prev.currentQuestion };
+        const answer = theQuestion.answers[answerIndex];
 
         if (answer && !answer.revealed) {
           answer.revealed = true;
-          const newTeamScores = { ...prev.teamScores };
 
           return {
             ...prev,
-            currentQuestion: newQuestion,
+            currentQuestion: theQuestion,
           };
         }
         return prev;
@@ -224,9 +245,13 @@ export const FamilyFeudGame = ({
       ...prev,
       strikes: Math.min(prev.strikes + 1, 3),
     }));
+  }, [gameState.strikes]);
 
-    if (gameState.strikes === 2) {
-    }
+  const handleUndoStrike = useCallback(() => {
+    setGameState((prev) => ({
+      ...prev,
+      strikes: Math.min(prev.strikes - 1, 3),
+    }));
   }, [gameState.strikes]);
 
   const handleResetStrikes = useCallback(() => {
@@ -267,10 +292,11 @@ export const FamilyFeudGame = ({
   }, []);
 
   const handleEnterGame = useCallback(
-    (team1Name: string, team2Name: string) => {
+    (team1Name: string, team2Name: string, isAuto: boolean) => {
       setGameState((prev) => ({
         ...prev,
         gameEntered: true,
+        isAuto: isAuto,
         teams: { team1: team1Name, team2: team2Name },
       }));
     },
@@ -322,26 +348,48 @@ export const FamilyFeudGame = ({
     return (
       <div className="min-h-screen bg-gradient-bg sparkle-bg p-2">
         <div className="space-y-2">
-          <GameBoard
-            key={timerKey}
-            question={gameState.currentQuestion}
-            answers={gameState.currentQuestion.answers}
-            onEndGame={handleEndGame}
-            onRevealAnswer={handleRevealAnswer}
-            onRevealAllAnswer={handleRevealAllAnswers}
-            onRevealAnswerEndRound={handleRevealAnswerEndRound}
-            onLeadPoints={handleLeadPoints}
-            onStealPoints={handleStealPoints}
-            onNextQuestion={handleNextQuestion}
-            onAddStrike={handleAddStrike}
-            currentRound={gameState.currentRound}
-            totalRounds={filteredQuestions.length}
-            teams={gameState.teams}
-            teamScores={gameState.teamScores}
-            strikes={gameState.strikes}
-            isHost={gameState.isHost}
-            isGameBegin={gameState.isGameBegin}
-          />
+          {gameState.isAuto ? (
+            <GameBoard
+              key={timerKey}
+              question={gameState.currentQuestion}
+              answers={gameState.currentQuestion.answers}
+              onEndGame={handleEndGame}
+              onRevealAnswer={handleRevealAnswer}
+              onRevealAnswerEndRound={handleRevealAnswerEndRound}
+              onLeadPoints={handleLeadPoints}
+              onStealPoints={handleStealPoints}
+              onNextQuestion={handleNextQuestion}
+              onAddStrike={handleAddStrike}
+              onUndoStrike={handleUndoStrike}
+              currentRound={gameState.currentRound}
+              totalRounds={filteredQuestions.length}
+              teams={gameState.teams}
+              teamScores={gameState.teamScores}
+              strikes={gameState.strikes}
+              isHost={gameState.isHost}
+              isGameBegin={gameState.isGameBegin}
+            />
+          ) : (
+            <GameBoardManual
+              key={timerKey}
+              question={gameState.currentQuestion}
+              answers={gameState.currentQuestion.answers}
+              onEndGame={handleEndGame}
+              onRevealAnswer={handleRevealAnswer}
+              onRevealAllAnswer={handleRevealAllAnswers}
+              onNextQuestion={handleNextQuestion}
+              onAddStrike={handleAddStrike}
+              onUndoStrike={handleUndoStrike}
+              onScoreChange={handleScoreChange}
+              currentRound={gameState.currentRound}
+              totalRounds={filteredQuestions.length}
+              teams={gameState.teams}
+              teamScores={gameState.teamScores}
+              strikes={gameState.strikes}
+              isHost={gameState.isHost}
+              isGameBegin={gameState.isGameBegin}
+            />
+          )}
 
           <HostControls
             questions={filteredQuestions}

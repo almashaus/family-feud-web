@@ -11,6 +11,7 @@ import LoginPage from "./pages/LoginPage";
 import { AuthProvider } from "./hooks/useAuth";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import CreateAccount from "./pages/CreateAccount";
+import UpdatePassword from "./pages/UpdatePassword";
 
 const queryClient = new QueryClient();
 
@@ -52,6 +53,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <CreateAccount />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/update-password"
+              element={
+                <ProtectedRoute>
+                  <UpdatePassword />
                 </ProtectedRoute>
               }
             />

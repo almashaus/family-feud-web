@@ -1,13 +1,13 @@
 import { useEffect, useState, useCallback, useRef, memo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, XIcon, SquareX, Undo2 } from "lucide-react";
+import { ArrowRight, XIcon, SquareX, PauseCircle, Undo2 } from "lucide-react";
 import FamilyFeudLogo from "/images/FF-logo.png";
 import BonaLogo from "/images/BB-logo.png";
 import { useToast } from "@/hooks/use-toast";
-import { GameQuestion } from "@/data/questions";
-import { useAuth } from "@/hooks/useAuth";
 import { logo } from "@/lib/tools/logos";
+import { useAuth } from "@/hooks/useAuth";
+import { GameQuestion } from "@/data/questions";
 
 export interface Answer {
   text: string;
@@ -18,23 +18,17 @@ export interface Answer {
 interface GameBoardProps {
   question: GameQuestion;
   answers: Answer[];
-  onRevealAnswer: (index: number, teamNumber: number) => void;
-  onRevealAnswerEndRound: (index: number) => void;
-  onLeadPoints: (
-    team1Point: number,
-    team2Point: number,
-    teamNumber: number
-  ) => void;
-  onStealPoints: (
-    team1Point: number,
-    team2Point: number,
+  onRevealAnswer: (
+    index: number,
     teamNumber: number,
-    answerIndex: number
+    isRevealAnswer: boolean
   ) => void;
+  onRevealAllAnswer: () => void;
   onNextQuestion: () => void;
   onEndGame: (gameStarted: boolean, answer: Answer[]) => void;
   onAddStrike: () => void;
   onUndoStrike: () => void;
+  onScoreChange: (score: number, teamNumber: number) => void;
   currentRound: number;
   totalRounds: number;
   teams: { team1: string; team2: string };
@@ -44,17 +38,16 @@ interface GameBoardProps {
   isGameBegin: boolean;
 }
 
-export const GameBoard = ({
+export const GameBoardManual = ({
   question,
   answers,
   onRevealAnswer,
-  onRevealAnswerEndRound,
-  onLeadPoints,
-  onStealPoints,
+  onRevealAllAnswer,
   onEndGame,
   onNextQuestion,
   onAddStrike,
   onUndoStrike,
+  onScoreChange,
   currentRound,
   totalRounds,
   teams,
@@ -64,72 +57,11 @@ export const GameBoard = ({
   isGameBegin,
 }: GameBoardProps) => {
   const [isRevealQuestion, setIsRevealQuestion] = useState(false);
+  const [isRevealAnswer, setIsRevealAnswer] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState<1 | 2 | null>(null);
-  const [determineTeamCounter, setDetermineTeamCounter] = useState<number>(0);
-  const [team1Point, setTeam1Point] = useState<number>(null);
-  const [team2Point, setTeam2Point] = useState<number>(null);
   const [showStrikeIcon, setShowStrikeIcon] = useState(false);
-  const [isStealMode, setIsStealMode] = useState(false);
-  const [isStealModeStrike, setIsStealModeStrike] = useState(false);
-  const [isRevealAllAnswerEndRound, setIsRevealAllAnswerEndRound] =
-    useState(false);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const { user } = useAuth();
-
-  useEffect(() => {
-    if (determineTeamCounter >= 2) {
-      if (team1Point > team2Point) {
-        setSelectedTeam(1);
-        onLeadPoints(team1Point, team2Point, 1);
-        setTeam1Point(team1Point + team2Point);
-        setTeam2Point(0);
-      } else {
-        setSelectedTeam(2);
-        onLeadPoints(team1Point, team2Point, 2);
-        setTeam2Point(team1Point + team2Point);
-        setTeam1Point(0);
-      }
-    }
-  }, [determineTeamCounter]);
-
-  useEffect(() => {
-    if (strikes === 3) {
-      setIsStealMode(true);
-      if (selectedTeam === 1) {
-        setSelectedTeam(2);
-      } else {
-        setSelectedTeam(1);
-      }
-    } else {
-      setIsStealMode(false);
-    }
-  }, [strikes]);
-
-  useEffect(() => {
-    if (isStealModeStrike) {
-      setShowStrikeIcon(true);
-      const audio = new window.Audio("/sounds/time-out.mp3");
-      audio.play();
-      setTimeout(() => {
-        setShowStrikeIcon(false);
-        setIsDialogOpen(true);
-      }, 2000);
-      setIsRevealAllAnswerEndRound(true);
-    } else if (isRevealAllAnswerEndRound && isStealMode) {
-      setTimeout(() => {
-        setIsDialogOpen(true);
-      }, 2000);
-    }
-  }, [isStealModeStrike, isRevealAllAnswerEndRound]);
-
-  useEffect(() => {
-    if (isDialogOpen) {
-      setTimeout(() => {
-        setIsDialogOpen(false);
-      }, 2000);
-    }
-  }, [isDialogOpen]);
 
   const handleEndGame = useCallback(
     (e: React.FormEvent) => {
@@ -166,10 +98,7 @@ export const GameBoard = ({
       className={`bg-gradient-primary text-primary-foreground hover:bg-primary-glow p-3 rounded-md border-4 border-gold-border ${
         currentRound !== totalRounds && "cursor-pointer"
       } `}
-      onClick={() => {
-        onNextQuestion();
-        setIsDialogOpen(false);
-      }}
+      onClick={onNextQuestion}
     >
       <ArrowRight
         className={`w-8 h-8 ${
@@ -241,33 +170,19 @@ export const GameBoard = ({
           </Button>
         </div>
       </div>
-
       <div className="flex flex-col items-center gap-4">
         <div className="flex justify-between items-center gap-3">
           <div className="hidden lg:flex">
             <MemoTeam1
               teams={teams}
               teamScores={teamScores}
-              selected={isRevealAllAnswerEndRound ? null : selectedTeam === 1}
+              selected={isRevealAnswer ? null : selectedTeam === 1}
               onSelect={() => setSelectedTeam(1)}
-              isStealMode={isStealMode}
-              isStealModeStrike={isStealModeStrike}
-              setIsStealModeStrike={setIsStealModeStrike}
-              isWinner={
-                isRevealAllAnswerEndRound ? team1Point > team2Point : false
-              }
+              onScoreChange={(value, team) => onScoreChange(value, team)}
             />
           </div>
 
-          <div
-            className={`${
-              isRevealAllAnswerEndRound || isStealModeStrike
-                ? "bg-gray-200"
-                : isStealMode
-                ? "bg-red-500"
-                : "bg-gradient-board "
-            } border-gold-border border-8 rounded-3xl p-3 md:p-4 shadow-board`}
-          >
+          <div className="bg-gradient-board border-gold-border border-8 rounded-3xl p-3 md:p-4 shadow-board ">
             <div
               className={`grid grid-cols-1 md:grid-cols-2 md:grid-flow-col gap-4`}
               style={{
@@ -281,70 +196,9 @@ export const GameBoard = ({
                   key={index}
                   number={index + 1}
                   answer={answer}
-                  onReveal={() => {
-                    // if all answers are revealed, end the round
-                    if (
-                      answers.filter((a) => a.revealed).length + 1 ===
-                      answers.length
-                    ) {
-                      setIsRevealAllAnswerEndRound(true);
-                    }
-
-                    // ---[ 1 NO SCORING ]---
-                    // reveal answer at end of round without scoring
-                    if (isRevealAllAnswerEndRound) {
-                      onRevealAnswerEndRound(index);
-                    } else {
-                      // ---[ 2 SCORING ]---
-
-                      /* Team 1 round points */
-                      if (!isStealMode && selectedTeam === 1) {
-                        setTeam1Point((prev) => prev + answer.points);
-                        if (determineTeamCounter < 2) {
-                          setSelectedTeam(2);
-                          setDetermineTeamCounter((prev) => prev + 1);
-                        }
-                      }
-                      /* Team 2 round points */
-                      if (!isStealMode && selectedTeam === 2) {
-                        setTeam2Point((prev) => prev + answer.points);
-                        if (determineTeamCounter < 2) {
-                          setSelectedTeam(1);
-                          setDetermineTeamCounter((prev) => prev + 1);
-                        }
-                      }
-
-                      /* [ STEAL MODE ] Team 1 scoring */
-                      if (isStealMode && selectedTeam === 1) {
-                        onStealPoints(
-                          team2Point + answer.points,
-                          team2Point,
-                          1,
-                          index
-                        );
-                        setTeam1Point(team2Point + answer.points);
-                        setTeam2Point(0);
-                        setIsRevealAllAnswerEndRound(true);
-
-                        /* [ STEAL MODE ] Team 2 scoring */
-                      } else if (isStealMode && selectedTeam === 2) {
-                        onStealPoints(
-                          team1Point,
-                          team1Point + answer.points,
-                          2,
-                          index
-                        );
-                        setTeam1Point(0);
-                        setTeam2Point(team1Point + answer.points);
-                        setIsRevealAllAnswerEndRound(true);
-                      }
-
-                      /* [ Reveal answer with team scoring ] */
-                      if (!isStealMode && !isRevealAllAnswerEndRound) {
-                        onRevealAnswer(index, selectedTeam);
-                      }
-                    }
-                  }}
+                  onReveal={() =>
+                    onRevealAnswer(index, selectedTeam, isRevealAnswer)
+                  }
                   isHost={isHost}
                   isGameBegin={isGameBegin}
                   selectedTeam={selectedTeam}
@@ -357,14 +211,9 @@ export const GameBoard = ({
             <MemoTeam2
               teams={teams}
               teamScores={teamScores}
-              selected={isRevealAllAnswerEndRound ? null : selectedTeam === 2}
+              selected={isRevealAnswer ? null : selectedTeam === 2}
               onSelect={() => setSelectedTeam(2)}
-              isStealMode={isStealMode}
-              isStealModeStrike={isStealModeStrike}
-              setIsStealModeStrike={setIsStealModeStrike}
-              isWinner={
-                isRevealAllAnswerEndRound ? team2Point > team1Point : false
-              }
+              onScoreChange={(value, team) => onScoreChange(value, team)}
             />
           </div>
         </div>
@@ -375,14 +224,9 @@ export const GameBoard = ({
             <MemoTeam1
               teams={teams}
               teamScores={teamScores}
-              selected={isRevealAllAnswerEndRound ? null : selectedTeam === 1}
+              selected={isRevealAnswer ? null : selectedTeam === 1}
               onSelect={() => setSelectedTeam(1)}
-              isStealMode={isStealMode}
-              isStealModeStrike={isStealModeStrike}
-              setIsStealModeStrike={setIsStealModeStrike}
-              isWinner={
-                isRevealAllAnswerEndRound ? team1Point > team2Point : false
-              }
+              onScoreChange={(value, team) => onScoreChange(value, team)}
             />
           </div>
           <Card className="bg-gradient-primary border-gold-border border-4 px-2 md:px-6 py-2 ">
@@ -420,44 +264,23 @@ export const GameBoard = ({
             <MemoTeam2
               teams={teams}
               teamScores={teamScores}
-              selected={isRevealAllAnswerEndRound ? null : selectedTeam === 2}
+              selected={isRevealAnswer ? null : selectedTeam === 2}
               onSelect={() => setSelectedTeam(2)}
-              isStealMode={isStealMode}
-              isStealModeStrike={isStealModeStrike}
-              setIsStealModeStrike={setIsStealModeStrike}
-              isWinner={
-                isRevealAllAnswerEndRound ? team2Point > team1Point : false
-              }
+              onScoreChange={(value, team) => onScoreChange(value, team)}
             />
           </div>
         </div>
       </div>
       {/* Strike Overlay */}
-      {showStrikeIcon &&
-        (isStealModeStrike ? (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+      {showStrikeIcon && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          {[...Array(strikes)].map((_, i) => (
             <SquareX
+              key={i}
               className="text-red-600"
               style={{ width: "20vw", height: "20vw" }}
             />
-          </div>
-        ) : (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-            {[...Array(strikes)].map((_, i) => (
-              <SquareX
-                key={i}
-                className="text-red-600"
-                style={{ width: "20vw", height: "20vw" }}
-              />
-            ))}
-          </div>
-        ))}
-      {/* show reveal answers */}
-      {isDialogOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80">
-          <span className="text-9xl font-extrabold text-gold-glow">
-            REVEAL ANSWER
-          </span>
+          ))}
         </div>
       )}
     </div>
@@ -482,7 +305,6 @@ const AnswerSlot = ({
   selectedTeam,
 }: AnswerSlotProps) => {
   const { toast } = useToast();
-
   const handleNotReveal = () => {
     if (!selectedTeam && isGameBegin) {
       toast({
@@ -493,7 +315,6 @@ const AnswerSlot = ({
       });
     }
   };
-
   return (
     <div
       className={`
@@ -545,10 +366,7 @@ interface TeamProps {
   teamScores: { team1: number; team2: number };
   selected: boolean;
   onSelect: () => void;
-  isStealMode: boolean;
-  isStealModeStrike: boolean;
-  setIsStealModeStrike: (boo: boolean) => void;
-  isWinner: boolean;
+  onScoreChange: (value: number, team: number) => void;
 }
 
 const Team1 = ({
@@ -556,104 +374,80 @@ const Team1 = ({
   teamScores,
   selected,
   onSelect,
-  isStealMode,
-  isStealModeStrike,
-  setIsStealModeStrike,
-  isWinner,
-}: TeamProps) => (
-  <Card
-    className={`${
-      isWinner
-        ? "bg-gradient-green"
-        : selected
-        ? "bg-gradient-gold"
-        : "bg-gradient-board"
-    } 
-    ${
-      isStealMode && selected
-        ? "shadow-[0_0_80px_rgba(220,38,38,1)] transition-shadow duration-300"
-        : "shadow-gold"
-    }
-    border-gold-border text-primary-foreground border-4 p-2 md:p-6 cursor-pointer`}
-    onClick={onSelect}
-  >
-    <div className="flex flex-col items-center text-center">
-      <h3
-        className={`game-board-font md:text-2xl ${
-          isStealMode && selected ? "text-red-500" : ""
-        }`}
-      >
-        {teams.team1}
-      </h3>
-      <p className="game-board-font md:text-4xl">{teamScores.team1}</p>
+  onScoreChange,
+}: TeamProps) => {
+  const [score, setScore] = useState(teamScores.team1);
 
-      {isStealMode && selected && (
-        <div
-          className={`w-10 h-10 rounded-full border-4 border-red-500 cursor-pointer "hover:border-red-600" `}
-          onClick={() => setIsStealModeStrike(true)}
-        >
-          {isStealModeStrike && (
-            <XIcon
-              className="text-red-600 w-8 h-8 reveal-animation"
-              strokeWidth={5}
-            />
-          )}
-        </div>
-      )}
-    </div>
-  </Card>
-);
+  useEffect(() => {
+    setScore(teamScores.team1);
+  }, [teamScores.team1]);
+
+  const handleScoreChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseInt(e.target.value, 10);
+    if (!isNaN(value)) {
+      setScore(value);
+      onScoreChange(value, 1);
+    }
+  };
+  return (
+    <Card
+      className={`${
+        selected ? "bg-gradient-gold" : "bg-gradient-board"
+      } border-gold-border text-primary-foreground border-4 p-2 md:p-6 shadow-gold cursor-pointer`}
+      onClick={onSelect}
+    >
+      <div className="text-center">
+        <h3 className="game-board-font md:text-2xl">{teams.team2}</h3>
+        <input
+          type="number"
+          className="game-board-font md:text-4xl text-center w-20 bg-transparent border-none outline-none"
+          value={score}
+          onChange={handleScoreChange}
+        />
+      </div>
+    </Card>
+  );
+};
 
 const Team2 = ({
   teams,
   teamScores,
   selected,
   onSelect,
-  isStealMode,
-  isStealModeStrike,
-  setIsStealModeStrike,
-  isWinner,
-}: TeamProps) => (
-  <Card
-    className={`${
-      isWinner
-        ? "bg-gradient-green"
-        : selected
-        ? "bg-gradient-gold"
-        : "bg-gradient-board"
-    }     
-    ${
-      isStealMode && selected
-        ? "shadow-[0_0_80px_rgba(220,38,38,1)] transition-shadow duration-300"
-        : "shadow-gold"
-    } border-gold-border text-primary-foreground border-4 p-2 md:p-6 cursor-pointer`}
-    onClick={onSelect}
-  >
-    <div className="flex flex-col items-center text-center">
-      <h3
-        className={`game-board-font md:text-2xl ${
-          isStealMode && selected ? "text-red-500" : ""
-        }`}
-      >
-        {teams.team2}
-      </h3>
-      <p className="game-board-font md:text-4xl">{teamScores.team2}</p>
-      {isStealMode && selected && (
-        <div
-          className={`w-10 h-10 rounded-full border-4 border-red-500 cursor-pointer "hover:border-red-600" `}
-          onClick={() => setIsStealModeStrike(true)}
-        >
-          {isStealModeStrike && (
-            <XIcon
-              className="text-red-600 w-8 h-8 reveal-animation"
-              strokeWidth={5}
-            />
-          )}
-        </div>
-      )}
-    </div>
-  </Card>
-);
+  onScoreChange,
+}: TeamProps) => {
+  const [score, setScore] = useState(teamScores.team2);
+
+  useEffect(() => {
+    setScore(teamScores.team2);
+  }, [teamScores.team2]);
+
+  const handleScoreChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseInt(e.target.value, 10);
+    if (!isNaN(value)) {
+      setScore(value);
+      onScoreChange(value, 2);
+    }
+  };
+  return (
+    <Card
+      className={`${
+        selected ? "bg-gradient-gold" : "bg-gradient-board"
+      } border-gold-border text-primary-foreground border-4 p-2 md:p-6 shadow-gold cursor-pointer`}
+      onClick={onSelect}
+    >
+      <div className="text-center">
+        <h3 className="game-board-font md:text-2xl">{teams.team2}</h3>
+        <input
+          type="number"
+          className="game-board-font md:text-4xl text-center w-20 bg-transparent border-none outline-none"
+          value={score}
+          onChange={handleScoreChange}
+        />
+      </div>
+    </Card>
+  );
+};
 
 const MemoTeam1 = memo(Team1);
 const MemoTeam2 = memo(Team2);

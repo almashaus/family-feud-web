@@ -6,16 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
-import { createUser } from "@/services/supabaseAuth";
-import { validateCredentials } from "@/lib/tools/validation";
+import { createUser, updatePassword } from "@/services/supabaseAuth";
+import { validateCredentials, validatePassword } from "@/lib/tools/validation";
 
-const CreateAccount = () => {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+const UpdatePassword = () => {
   const [password, setPassword] = useState("");
   const [validation, setValidation] = useState({
-    isEmailValid: false,
-    emailErrors: [""],
     isPasswordValid: false,
     passwordErrors: [""],
   });
@@ -23,34 +19,26 @@ const CreateAccount = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    const result = validateCredentials(email, password);
+    const result = validatePassword(password);
     setValidation(() => {
       return {
-        isEmailValid: result.isEamilValid,
-        emailErrors: result.errors.emailError,
-        isPasswordValid: result.isPasswordVaild,
-        passwordErrors: result.errors.passwordError,
+        isPasswordValid: result.isValid,
+        passwordErrors: result.errors,
       };
     });
-  }, [email, password]);
+  }, [password]);
 
   const handleSave = async () => {
-    if (!name.trim() || !email.trim() || !password.trim()) {
+    if (!password.trim()) {
       toast({
         title: "Error",
-        description: `Please enter a ${
-          !name.trim() ? "name" : !email.trim() ? "email" : "password"
-        }`,
+        description: `Please enter a password`,
         variant: "destructive",
       });
       return;
     }
 
-    const result = await createUser({
-      email: email,
-      password: password,
-      displayName: name,
-    });
+    const result = await updatePassword({ newPassword: password });
 
     if (result.success) {
       toast({
@@ -65,8 +53,6 @@ const CreateAccount = () => {
       });
     }
     // Reset form
-    setName("");
-    setEmail("");
     setPassword("");
   };
 
@@ -82,7 +68,7 @@ const CreateAccount = () => {
             </Link>
 
             <CardTitle className="text-3xl font-bold text-secondary">
-              Create New Account
+              Update the password
             </CardTitle>
             <Button
               variant="ghost"
@@ -92,39 +78,6 @@ const CreateAccount = () => {
           </CardHeader>
 
           <CardContent className="space-y-6">
-            {/* name Input */}
-            <div className="space-y-2">
-              <Label htmlFor="name" className="text-lg font-semibold">
-                Name
-              </Label>
-              <Input
-                id="name"
-                placeholder="Type the name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="h-12 text-lg bg-muted border-gold-border border-2"
-              />
-            </div>
-
-            {/* email Input */}
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-lg font-semibold">
-                Email
-              </Label>
-              <Input
-                id="email"
-                placeholder="Type the email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="h-12 text-lg bg-muted border-gold-border border-2"
-              />
-              {!validation.isEmailValid && (
-                <span className="text-red-400">
-                  {validation.emailErrors.filter((e) => e).join(", ")}
-                </span>
-              )}
-            </div>
-
             {/* password Input */}
             <div className="space-y-2">
               <Label htmlFor="password" className="text-lg font-semibold">
@@ -150,13 +103,9 @@ const CreateAccount = () => {
                 variant="green"
                 onClick={handleSave}
                 className="md:px-24 py-6 text-lg gap-2"
-                disabled={
-                  !validation.isEmailValid ||
-                  !validation.isPasswordValid ||
-                  !name
-                }
+                disabled={!validation.isPasswordValid}
               >
-                Create Account
+                Update Password
               </Button>
             </div>
           </CardContent>
@@ -166,4 +115,4 @@ const CreateAccount = () => {
   );
 };
 
-export default CreateAccount;
+export default UpdatePassword;
