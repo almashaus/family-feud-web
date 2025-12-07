@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, useEffect } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -7,7 +7,12 @@ interface ProtectedRouteProps {
 }
 
 export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
-  const { user, loading } = useAuth();
+  const { user, loading, getAuthUser } = useAuth();
+
+  useEffect(() => {
+    getAuthUser();
+    // eslint-disable-next-line
+  }, []);
 
   if (loading) {
     return (

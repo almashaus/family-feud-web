@@ -182,11 +182,15 @@ export const GameBoard = ({
   return (
     <div className="flex flex-col gap-4 p-2 md:p-4">
       <div className="flex flex-col md:flex-row justify-between items-center">
-        <img
-          src={logo(user.user_metadata.display_name)}
-          alt="Mirai Logo"
-          className="hidden md:inline w-32 h-18"
-        />
+        {logo(user.user_metadata.display_name) ? (
+          <img
+            src={logo(user.user_metadata.display_name)}
+            alt="Logo"
+            className="hidden md:inline w-32 h-18"
+          />
+        ) : (
+          <div className="w-32 h-18"></div>
+        )}
 
         <div className="flex flex-row justify-center items-center align-middle gap-4">
           <Card

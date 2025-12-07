@@ -67,11 +67,13 @@ export const TeamSetup = ({
               />
 
               <div className="flex flex-row justify-center align-middle items-center space-x-10">
-                <img
-                  src={logo(user.user_metadata.display_name)}
-                  alt="Logo"
-                  className="w-28 mt-4 object-cover "
-                />
+                {logo(user.user_metadata.display_name) && (
+                  <img
+                    src={logo(user.user_metadata.display_name)}
+                    alt="Logo"
+                    className="w-28 mt-4 object-cover "
+                  />
+                )}
                 <img
                   src={BonaLogo}
                   alt="Bona Banana Logo"
