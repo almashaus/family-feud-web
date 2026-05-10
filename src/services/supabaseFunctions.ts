@@ -7,9 +7,11 @@ export const fetchQuestionsData = async (): Promise<GameQuestion[]> => {
       question,
       question_number,
       answers (
+        id,
         text,
         points,
-        revealed
+        revealed,
+        position
       )
     `);
 
@@ -17,12 +19,15 @@ export const fetchQuestionsData = async (): Promise<GameQuestion[]> => {
     (q: any) =>
       ({
         id: q.question_number,
+        dbId: q.id,
         question: q.question,
         answers: Array.isArray(q.answers)
           ? q.answers.map((a: any) => ({
+              id: a.id,
               text: a.text ?? "",
               points: a.points ?? 0,
               revealed: a.revealed ?? false,
+              position: a.position ?? 0,
             }))
           : [],
       } as GameQuestion)

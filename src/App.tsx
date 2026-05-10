@@ -7,6 +7,8 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import AddQuestion from "./pages/host/AddQuestion";
 import ViewQuestions from "./pages/host/ViewQuestions";
+import HostGame from "./pages/host/HostGame";
+import BoardPage from "./pages/board/BoardPage";
 import LoginPage from "./pages/LoginPage";
 import { AuthProvider } from "./hooks/useAuth";
 import { ProtectedRoute } from "./components/ProtectedRoute";
@@ -48,6 +50,15 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/host/game"
+              element={
+                <ProtectedRoute>
+                  <HostGame />
+                </ProtectedRoute>
+              }
+            />
+            <Route path="/board" element={<BoardPage />} />
             <Route
               path="/create-account"
               element={
