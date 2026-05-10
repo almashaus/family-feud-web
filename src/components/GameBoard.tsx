@@ -5,7 +5,7 @@ import { ArrowRight, XIcon, SquareX, Undo2 } from "lucide-react";
 import FamilyFeudLogo from "/images/FF-logo.png";
 import BonaLogo from "/images/BB-logo.png";
 import { useToast } from "@/hooks/use-toast";
-import { GameQuestion } from "@/data/questions";
+import { GameQuestion } from "@/types/game";
 import { useAuth } from "@/hooks/useAuth";
 import { logo } from "@/lib/tools/logos";
 

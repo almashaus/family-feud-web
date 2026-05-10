@@ -13,7 +13,7 @@ import { Plus, Trash2, Save, ArrowLeft, PlusIcon } from "lucide-react";
 import useSWR, { mutate } from "swr";
 import { Link } from "react-router-dom";
 import { deleteData, fetchQuestionsData } from "@/services/supabaseFunctions";
-import { GameQuestion } from "@/data/questions";
+import { GameQuestion } from "@/types/game";
 
 interface Answer {
   text: string;

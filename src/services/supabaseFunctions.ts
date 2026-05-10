@@ -1,4 +1,4 @@
-import { GameQuestion } from "@/data/questions";
+import { GameQuestion } from "@/types/game";
 import { supabase } from "./supabase";
 
 export const fetchQuestionsData = async (): Promise<GameQuestion[]> => {

@@ -1,5 +1,5 @@
 import { FamilyFeudGame } from "@/components/FamilyFeudGame";
-import { GameQuestion } from "@/data/questions";
+import { GameQuestion } from "@/types/game";
 import { fetchQuestionsData } from "@/services/supabaseFunctions";
 import FamilyFeudLogo from "/images/FF-logo.png";
 import { useEffect, useState } from "react";

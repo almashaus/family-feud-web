@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from "react";
 import { GameBoard } from "./GameBoard";
 import { HostControls } from "./HostControls";
 import { TeamSetup } from "./TeamSetup";
-import { type GameQuestion } from "@/data/questions";
+import { type GameQuestion } from "@/types/game";
 import { useAuth } from "@/hooks/useAuth";
 import { GameBoardManual } from "./GameBoardManual";
 

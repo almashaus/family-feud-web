@@ -7,7 +7,7 @@ import BonaLogo from "/images/BB-logo.png";
 import { useToast } from "@/hooks/use-toast";
 import { logo } from "@/lib/tools/logos";
 import { useAuth } from "@/hooks/useAuth";
-import { GameQuestion } from "@/data/questions";
+import { GameQuestion } from "@/types/game";
 
 export interface Answer {
   text: string;

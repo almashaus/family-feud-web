@@ -16,7 +16,7 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import { GameQuestion } from "@/data/questions";
+import { GameQuestion } from "@/types/game";
 
 interface HostControlsProps {
   onGameBegin: (isGameBegin: boolean, startId?: number, endId?: number) => void;
