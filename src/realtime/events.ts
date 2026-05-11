@@ -8,13 +8,57 @@ export const GameEvents = {
   GAME_STARTED: "GAME_STARTED",
   GAME_ENDED: "GAME_ENDED",
   ALL_ANSWERS_REVEALED: "ALL_ANSWERS_REVEALED",
+  TEAM_SELECTED: "TEAM_SELECTED",
 } as const;
 
 export type GameEventType = (typeof GameEvents)[keyof typeof GameEvents];
 
-export interface GameEvent {
-  type: GameEventType;
-  payload: Record<string, unknown>;
-  gameId?: string;
-  timestamp: number;
+// --- Typed payloads — match what each feature action writes into game_events.payload ---
+
+export interface AnswerRevealedPayload {
+  answerId: number;
+  points: number;
+  questionDbId: number;
+}
+
+export interface AllAnswersRevealedPayload {
+  answerIds: number[];
+  questionDbId: number;
+}
+
+export interface ScoreUpdatedPayload {
+  team: "team_a" | "team_b";
+  score: number;
+}
+
+export interface StrikePayload {
+  strikes: number;
+}
+
+export interface RoundChangedPayload {
+  nextQuestionDbId: number;
+  round: number;
+}
+
+export interface GameStartedPayload {
+  questionDbId: number;
+}
+
+export interface TeamSelectedPayload {
+  team: "team_a" | "team_b" | null;
+}
+
+// --- Handler contract — consumed by useGameEvents ---
+
+export interface GameEventHandlers {
+  onAnswerRevealed?: (payload: AnswerRevealedPayload) => void;
+  onAllAnswersRevealed?: (payload: AllAnswersRevealedPayload) => void;
+  onScoreUpdated?: (payload: ScoreUpdatedPayload) => void;
+  onStrikeAdded?: (payload: StrikePayload) => void;
+  onStrikeRemoved?: (payload: StrikePayload) => void;
+  onStrikesReset?: (payload: StrikePayload) => void;
+  onRoundChanged?: (payload: RoundChangedPayload) => void;
+  onGameStarted?: (payload: GameStartedPayload) => void;
+  onGameEnded?: () => void;
+  onTeamSelected?: (payload: TeamSelectedPayload) => void;
 }

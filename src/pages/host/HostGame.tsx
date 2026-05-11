@@ -1,10 +1,20 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowRight, ArrowLeft, XIcon, Undo2, Copy, Check } from "lucide-react";
+import {
+  ArrowRight,
+  ArrowLeft,
+  XIcon,
+  Undo2,
+  Copy,
+  Check,
+  Undo,
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { fetchQuestionsData } from "@/services/supabaseFunctions";
 import type { GameQuestion, Game } from "@/types/game";
 import {
@@ -13,6 +23,7 @@ import {
   nextRound,
   endGame,
   generateSessionCode,
+  selectTeam,
 } from "@/features/game";
 import {
   revealAnswer,
@@ -20,8 +31,9 @@ import {
   resetAnswersForQuestion,
   fetchAnswersForQuestion,
 } from "@/features/answers";
-import { updateScore } from "@/features/scores";
+import { updateScore, awardPoints } from "@/features/scores";
 import { addStrike, removeStrike, resetStrikes } from "@/features/strikes";
+import { cn } from "@/lib/utils";
 
 type Phase = "setup" | "active" | "finished";
 
@@ -35,17 +47,21 @@ interface LocalAnswer {
 
 export default function HostGame() {
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const { signOut } = useAuth();
 
   const [phase, setPhase] = useState<Phase>("setup");
   const [allQuestions, setAllQuestions] = useState<GameQuestion[]>([]);
-  const [filteredQuestions, setFilteredQuestions] = useState<GameQuestion[]>([]);
+  const [filteredQuestions, setFilteredQuestions] = useState<GameQuestion[]>(
+    [],
+  );
   const [game, setGame] = useState<Game | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<LocalAnswer[]>([]);
 
   // Setup form state
-  const [teamAName, setTeamAName] = useState("Team A");
-  const [teamBName, setTeamBName] = useState("Team B");
+  const [teamAName, setTeamAName] = useState("Heroes");
+  const [teamBName, setTeamBName] = useState("Champions");
   const [startId, setStartId] = useState("");
   const [endId, setEndId] = useState("");
   const [isCreating, setIsCreating] = useState(false);
@@ -53,6 +69,10 @@ export default function HostGame() {
   // Score inputs
   const [scoreA, setScoreA] = useState(0);
   const [scoreB, setScoreB] = useState(0);
+
+  const [selectedTeam, setSelectedTeam] = useState<"team_a" | "team_b" | null>(
+    null,
+  );
 
   const [copied, setCopied] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -86,13 +106,20 @@ export default function HostGame() {
     }
 
     if (filtered.length === 0) {
-      toast({ title: "No questions found in that range", variant: "destructive" });
+      toast({
+        title: "No questions found in that range",
+        variant: "destructive",
+      });
       return;
     }
 
     setIsCreating(true);
     const code = generateSessionCode();
-    const newGame = await createGame(code, teamAName.trim() || "Team A", teamBName.trim() || "Team B");
+    const newGame = await createGame(
+      code,
+      teamAName.trim() || "Team A",
+      teamBName.trim() || "Team B",
+    );
 
     if (!newGame) {
       toast({ title: "Failed to create game", variant: "destructive" });
@@ -100,10 +127,11 @@ export default function HostGame() {
       return;
     }
 
-    // Reset answers for all filtered questions
-    for (const q of filtered) {
-      if (q.dbId) await resetAnswersForQuestion(q.dbId);
-    }
+    await Promise.all(
+      filtered
+        .filter((q) => q.dbId)
+        .map((q) => resetAnswersForQuestion(q.dbId!)),
+    );
 
     const firstQuestion = filtered[0];
     await startGame(newGame.id, firstQuestion.dbId!);
@@ -121,24 +149,58 @@ export default function HostGame() {
     if (!game || answer.revealed) return;
     setIsLoading(true);
 
-    const ok = await revealAnswer(game.id, answer.id, answer.points, currentQuestion!.dbId!);
+    const ok = await revealAnswer(
+      game.id,
+      answer.id,
+      answer.points,
+      currentQuestion!.dbId!,
+    );
     if (ok) {
       setAnswers((prev) =>
-        prev.map((a) => (a.id === answer.id ? { ...a, revealed: true } : a))
+        prev.map((a) => (a.id === answer.id ? { ...a, revealed: true } : a)),
       );
+      if (selectedTeam) {
+        const currentScore = selectedTeam === "team_a" ? scoreA : scoreB;
+        const newScore = currentScore + answer.points;
+        if (selectedTeam === "team_a") {
+          setScoreA(newScore);
+          setGame((g) => g && { ...g, team_a_score: newScore });
+        } else {
+          setScoreB(newScore);
+          setGame((g) => g && { ...g, team_b_score: newScore });
+        }
+        await awardPoints(game.id, selectedTeam, currentScore, answer.points);
+      }
     }
     setIsLoading(false);
   };
 
   const handleRevealAll = async () => {
     if (!game || !currentQuestion) return;
-    const hidden = answers.filter((a) => !a.revealed).map((a) => a.id);
-    if (hidden.length === 0) return;
+    const hiddenAnswers = answers.filter((a) => !a.revealed);
+    if (hiddenAnswers.length === 0) return;
 
     setIsLoading(true);
-    const ok = await revealAllAnswers(game.id, hidden, currentQuestion.dbId!);
+    const ok = await revealAllAnswers(
+      game.id,
+      hiddenAnswers.map((a) => a.id),
+      currentQuestion.dbId!,
+    );
     if (ok) {
       setAnswers((prev) => prev.map((a) => ({ ...a, revealed: true })));
+      if (selectedTeam) {
+        const totalPoints = hiddenAnswers.reduce((sum, a) => sum + a.points, 0);
+        const currentScore = selectedTeam === "team_a" ? scoreA : scoreB;
+        const newScore = currentScore + totalPoints;
+        if (selectedTeam === "team_a") {
+          setScoreA(newScore);
+          setGame((g) => g && { ...g, team_a_score: newScore });
+        } else {
+          setScoreB(newScore);
+          setGame((g) => g && { ...g, team_b_score: newScore });
+        }
+        await awardPoints(game.id, selectedTeam, currentScore, totalPoints);
+      }
     }
     setIsLoading(false);
   };
@@ -179,6 +241,8 @@ export default function HostGame() {
     await resetStrikes(game.id);
     setGame((g) => g && { ...g, current_question_id: nextQ.dbId!, strikes: 0 });
     setCurrentIndex(nextIndex);
+    setSelectedTeam(null);
+    await selectTeam(game.id, null);
     setIsLoading(false);
   };
 
@@ -192,6 +256,8 @@ export default function HostGame() {
     await resetStrikes(game.id);
     setGame((g) => g && { ...g, current_question_id: prevQ.dbId!, strikes: 0 });
     setCurrentIndex(prevIndex);
+    setSelectedTeam(null);
+    await selectTeam(game.id, null);
     setIsLoading(false);
   };
 
@@ -201,6 +267,13 @@ export default function HostGame() {
     setPhase("finished");
   };
 
+  const handleSelectTeam = async (team: "team_a" | "team_b") => {
+    if (!game) return;
+    const next = selectedTeam === team ? null : team;
+    setSelectedTeam(next);
+    await selectTeam(game.id, next);
+  };
+
   const handleNewGame = () => {
     setPhase("setup");
     setGame(null);
@@ -208,8 +281,9 @@ export default function HostGame() {
     setCurrentIndex(0);
     setScoreA(0);
     setScoreB(0);
-    setTeamAName("Team A");
-    setTeamBName("Team B");
+    setSelectedTeam(null);
+    setTeamAName("Heroes");
+    setTeamBName("Champions");
     setStartId("");
     setEndId("");
   };
@@ -224,6 +298,11 @@ export default function HostGame() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/login");
+  };
+
   if (phase === "setup") {
     return (
       <div className="min-h-screen bg-gradient-bg sparkle-bg flex items-center justify-center p-4">
@@ -232,28 +311,32 @@ export default function HostGame() {
             HOST SETUP
           </h1>
 
-          <div className="space-y-4">
+          <div className="space-y-6">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label className="text-primary-foreground game-board-font">Team A</Label>
+                <Label className="text-primary-foreground game-board-font md:text-lg">
+                  Team A
+                </Label>
                 <Input
                   value={teamAName}
                   onChange={(e) => setTeamAName(e.target.value)}
-                  className="bg-primary text-primary-foreground border-gold-border border-2"
+                  className="bg-muted border-gold-border border-2 h-12 text-lg"
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-primary-foreground game-board-font">Team B</Label>
+                <Label className="text-primary-foreground game-board-font md:text-lg">
+                  Team B
+                </Label>
                 <Input
                   value={teamBName}
                   onChange={(e) => setTeamBName(e.target.value)}
-                  className="bg-primary text-primary-foreground border-gold-border border-2"
+                  className="bg-muted border-gold-border border-2 h-12 text-lg"
                 />
               </div>
             </div>
 
             <div className="space-y-1">
-              <Label className="text-primary-foreground game-board-font">
+              <Label className="text-primary-foreground game-board-font md:text-lg">
                 Question Range (optional)
               </Label>
               <div className="grid grid-cols-2 gap-3">
@@ -262,25 +345,53 @@ export default function HostGame() {
                   value={startId}
                   onChange={(e) => setStartId(e.target.value)}
                   type="number"
-                  className="bg-primary text-primary-foreground border-gold-border border-2"
+                  className="bg-muted text-primary-foreground border-gold-border border-2 h-12 text-lg"
                 />
                 <Input
                   placeholder={`To (1–${allQuestions.length})`}
                   value={endId}
                   onChange={(e) => setEndId(e.target.value)}
                   type="number"
-                  className="bg-primary text-primary-foreground border-gold-border border-2"
+                  className="bg-muted text-primary-foreground border-gold-border border-2 h-12 text-lg"
                 />
               </div>
             </div>
 
             <Button
-              className="w-full bg-gradient-primary border-gold-border border-2 game-board-font text-lg"
+              variant="game"
+              className="w-full bg-gradient-primary game-board-font md:text-lg font-bold py-6 tracking-wide pulse-glow"
               onClick={handleCreate}
               disabled={isCreating || allQuestions.length === 0}
             >
               {isCreating ? "Creating..." : "CREATE GAME"}
             </Button>
+
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                variant="green"
+                className="w-full border-gold-border game-board-font text-sm py-6 tracking-wide"
+                onClick={() => navigate("/host/view-questions")}
+              >
+                VIEW ALL QUESTIONS
+              </Button>
+
+              <Button
+                variant="yellow"
+                className="w-full border-gold-border game-board-font text-sm py-6 tracking-wide"
+                onClick={() => navigate("/host/add-question")}
+              >
+                ADD NEW QUESTION
+              </Button>
+            </div>
+            <div className="flex justify-center">
+              <Button
+                onClick={handleSignOut}
+                variant="link"
+                className="text-lg text-primary"
+              >
+                Sign Out
+              </Button>
+            </div>
           </div>
         </Card>
       </div>
@@ -291,7 +402,9 @@ export default function HostGame() {
     return (
       <div className="min-h-screen bg-gradient-bg sparkle-bg flex items-center justify-center p-4">
         <Card className="bg-gradient-board border-gold-border border-4 p-8 w-full max-w-md shadow-board text-center">
-          <h1 className="game-board-font text-3xl text-primary-foreground mb-4">GAME OVER</h1>
+          <h1 className="game-board-font text-3xl text-primary-foreground mb-4">
+            GAME OVER
+          </h1>
           <p className="text-primary-foreground game-board-font text-xl mb-2">
             {game?.team_a_name}: {scoreA}
           </p>
@@ -312,14 +425,14 @@ export default function HostGame() {
   return (
     <div className="min-h-screen bg-gradient-bg sparkle-bg p-3">
       <div className="max-w-4xl mx-auto space-y-3">
-
         {/* Header: session + board URL */}
         <Card className="bg-gradient-board border-gold-border border-4 p-3 shadow-gold">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
             <span className="game-board-font text-primary-foreground text-lg">
-              SESSION: <span className="text-yellow-300">{game?.session_code}</span>
+              SESSION:{" "}
+              <span className="text-yellow-300">{game?.session_code}</span>
             </span>
-            <div className="flex items-center gap-2 flex-1 max-w-sm">
+            <div className="flex items-center gap-2 w-2/3">
               <Input
                 readOnly
                 value={boardUrl}
@@ -331,14 +444,18 @@ export default function HostGame() {
                 className="border-gold-border shrink-0"
                 onClick={handleCopyUrl}
               >
-                {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
+                {copied ? (
+                  <Check className="w-4 h-4 text-green-400" />
+                ) : (
+                  <Copy className="w-4 h-4" />
+                )}
               </Button>
             </div>
             <Button
               variant="strike"
               size="sm"
               onClick={handleEndGame}
-              className="shrink-0"
+              className="shrink-0 border-2"
             >
               END GAME
             </Button>
@@ -347,26 +464,48 @@ export default function HostGame() {
 
         {/* Scores */}
         <div className="grid grid-cols-2 gap-3">
-          <Card className="bg-gradient-board border-gold-border border-4 p-3 shadow-gold">
+          <Card
+            className={cn(
+              "flex flex-col items-center border-gold-border border-4 p-3 shadow-gold cursor-pointer transition-all duration-200 select-none",
+              selectedTeam === "team_a"
+                ? "bg-gradient-gold"
+                : "bg-gradient-board",
+            )}
+            onClick={() => handleSelectTeam("team_a")}
+          >
             <p className="game-board-font text-primary-foreground text-center mb-1">
               {game?.team_a_name}
             </p>
             <input
               type="number"
               value={scoreA}
-              onChange={(e) => handleScoreAChange(parseInt(e.target.value) || 0)}
-              className="game-board-font text-3xl text-center w-full bg-transparent text-primary-foreground border-none outline-none"
+              onChange={(e) =>
+                handleScoreAChange(parseInt(e.target.value) || 0)
+              }
+              onClick={(e) => e.stopPropagation()}
+              className="game-board-font text-3xl text-center w-1/3 min-w-24 bg-transparent text-primary-foreground border-2 border-white rounded-lg"
             />
           </Card>
-          <Card className="bg-gradient-board border-gold-border border-4 p-3 shadow-gold">
+          <Card
+            className={cn(
+              "flex flex-col items-center border-gold-border border-4 p-3 shadow-gold cursor-pointer transition-all duration-200 select-none",
+              selectedTeam === "team_b"
+                ? "bg-gradient-gold"
+                : "bg-gradient-board",
+            )}
+            onClick={() => handleSelectTeam("team_b")}
+          >
             <p className="game-board-font text-primary-foreground text-center mb-1">
               {game?.team_b_name}
             </p>
             <input
               type="number"
               value={scoreB}
-              onChange={(e) => handleScoreBChange(parseInt(e.target.value) || 0)}
-              className="game-board-font text-3xl text-center w-full bg-transparent text-primary-foreground border-none outline-none"
+              onChange={(e) =>
+                handleScoreBChange(parseInt(e.target.value) || 0)
+              }
+              onClick={(e) => e.stopPropagation()}
+              className="game-board-font text-3xl text-center w-1/3 min-w-24 bg-transparent text-primary-foreground border-2 border-white rounded-lg"
             />
           </Card>
         </div>
@@ -391,7 +530,9 @@ export default function HostGame() {
               variant="outline"
               className="border-gold-border"
               onClick={handleNext}
-              disabled={currentIndex === filteredQuestions.length - 1 || isLoading}
+              disabled={
+                currentIndex === filteredQuestions.length - 1 || isLoading
+              }
             >
               <ArrowRight className="w-4 h-4" />
             </Button>
@@ -419,27 +560,34 @@ export default function HostGame() {
             {answers.map((answer, i) => (
               <div
                 key={answer.id}
-                className={`flex items-center justify-between rounded-lg p-2 border-2 ${
+                className={`flex items-center justify-between rounded-lg px-2 border-2 ${
                   answer.revealed
-                    ? "bg-gradient-primary border-gold-border"
-                    : "bg-primary border-primary-foreground/30"
+                    ? "bg-gradient-primary border-gold-border py-4"
+                    : "bg-primary/10 border-primary-foreground/30 py-2.5"
                 }`}
               >
                 <div className="flex items-center gap-2">
                   <span className="game-board-font text-primary-foreground w-6 text-center">
                     {i + 1}
                   </span>
-                  <span className="game-board-font text-primary-foreground">
-                    {answer.revealed ? answer.text : "[ HIDDEN ]"}
+                  <span
+                    className={cn(
+                      "game-board-font text-primary-foreground",
+                      !answer.revealed && "text-muted-foreground",
+                    )}
+                  >
+                    {answer.text}{" "}
+                    <span className="game-board-font text-sm text-yellow-300">
+                      {answer.points} pts
+                    </span>
                   </span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="game-board-font text-yellow-300">{answer.points} pts</span>
+                <div className="flex flex-col items-center gap-2">
                   {!answer.revealed && (
                     <Button
                       size="sm"
-                      variant="outline"
-                      className="border-gold-border text-xs h-7 px-2"
+                      variant="green"
+                      className="text-xs h-7 px-3 py-4"
                       onClick={() => handleRevealAnswer(answer)}
                       disabled={isLoading}
                     >
@@ -453,20 +601,12 @@ export default function HostGame() {
         </Card>
 
         {/* Strikes */}
-        <Card className="bg-gradient-primary border-gold-border border-4 p-3 shadow-gold">
-          <div className="flex items-center justify-center gap-4">
-            <Button
-              size="sm"
-              variant="outline"
-              className="border-gold-border"
-              onClick={handleUndoStrike}
-              disabled={!game || game.strikes === 0}
-            >
-              <Undo2 className="w-4 h-4" />
-            </Button>
-
-            <div className="flex items-center gap-2">
-              <span className="game-board-font text-primary-foreground mr-2">STRIKES</span>
+        <Card className="bg-gradient-board border-gold-border border-4 p-3 shadow-gold">
+          <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center sm:gap-4">
+            <div className="flex items-center gap-2 order-1 sm:order-2">
+              <span className="game-board-font text-primary-foreground mr-2">
+                STRIKES
+              </span>
               {[...Array(3)].map((_, i) => (
                 <div
                   key={i}
@@ -480,14 +620,25 @@ export default function HostGame() {
               ))}
             </div>
 
-            <Button
-              size="sm"
-              className="bg-strike-red border-0"
-              onClick={handleAddStrike}
-              disabled={!game || game.strikes >= 3}
-            >
-              + STRIKE
-            </Button>
+            <div className="flex items-center gap-4 order-2 sm:contents">
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={handleUndoStrike}
+                disabled={!game || game.strikes === 0}
+                className="sm:order-1"
+              >
+                <Undo className="w-4 h-4" /> UNDO
+              </Button>
+              <Button
+                size="sm"
+                className="bg-strike-red hover:bg-strike-red/80 border-0 sm:order-3"
+                onClick={handleAddStrike}
+                disabled={!game || game.strikes >= 3}
+              >
+                + STRIKE
+              </Button>
+            </div>
           </div>
         </Card>
       </div>

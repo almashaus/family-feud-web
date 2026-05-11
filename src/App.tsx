@@ -26,7 +26,7 @@ const App = () => (
           <Sonner />
           <Routes>
             <Route
-              path="/"
+              path="/v1"
               element={
                 <ProtectedRoute>
                   <Index />
@@ -36,6 +36,14 @@ const App = () => (
             <Route path="/login" element={<LoginPage />} />
             <Route
               path="/host"
+              element={
+                <ProtectedRoute>
+                  <HostGame />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/host/view-questions"
               element={
                 <ProtectedRoute>
                   <ViewQuestions />
@@ -50,8 +58,10 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+
+            {/* TODO: create home page "/" */}
             <Route
-              path="/host/game"
+              path="/"
               element={
                 <ProtectedRoute>
                   <HostGame />

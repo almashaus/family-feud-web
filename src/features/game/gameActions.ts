@@ -1,6 +1,6 @@
 import { supabase } from "@/services/supabase";
 import { GameEvents } from "@/realtime/events";
-import type { Game } from "@/types/game";
+import type { Game, GameTurn } from "@/types/game";
 
 export function generateSessionCode(): string {
   return Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -85,6 +85,18 @@ export async function endGame(gameId: number): Promise<boolean> {
   });
 
   return true;
+}
+
+export async function selectTeam(
+  gameId: number,
+  team: GameTurn | null
+): Promise<boolean> {
+  const { error } = await supabase.from("game_events").insert({
+    game_id: gameId,
+    type: GameEvents.TEAM_SELECTED,
+    payload: { team },
+  });
+  return !error;
 }
 
 export async function fetchGameBySessionCode(

@@ -38,10 +38,10 @@ const AddQuestion = () => {
   const updateAnswer = (
     index: number,
     field: keyof Answer,
-    value: string | number
+    value: string | number,
   ) => {
     const updatedAnswers = answers.map((answer, i) =>
-      i === index ? { ...answer, [field]: value } : answer
+      i === index ? { ...answer, [field]: value } : answer,
     );
     setAnswers(updatedAnswers);
   };
@@ -94,7 +94,7 @@ const AddQuestion = () => {
     }
 
     const validAnswers = answers.filter(
-      (answer) => answer.text.trim() && answer.points > 0
+      (answer) => answer.text.trim() && answer.points > 0,
     );
     if (validAnswers.length < 1) {
       toast({
@@ -148,7 +148,7 @@ const AddQuestion = () => {
       <div className="relative z-10 container mx-auto px-4 py-8">
         <Card className="mx-auto bg-gradient-board border-gold-border border-8 md:p-6 shadow-board max-w-2xl w-full">
           <CardHeader className="flex flex-row justify-between">
-            <Link to="/host">
+            <Link to="/host/view-questions">
               <Button variant="ghost" className="text-white hover:bg-white/10">
                 <ArrowLeft className="w-4 h-4" strokeWidth={4} />
               </Button>
@@ -210,7 +210,7 @@ const AddQuestion = () => {
                           updateAnswer(
                             index,
                             "points",
-                            parseInt(e.target.value) || 0
+                            parseInt(e.target.value) || 0,
                           )
                         }
                       />

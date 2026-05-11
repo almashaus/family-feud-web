@@ -1,12 +1,11 @@
-// Phase 7: GSAP score update animation
-// Triggered by SCORE_UPDATED realtime event.
-
 import { gsap } from "gsap";
 
-export const animateScoreUpdate = (element: HTMLElement) => {
-  gsap.fromTo(
-    element,
-    { scale: 1.3, color: "#ffd700" },
-    { scale: 1, color: "inherit", duration: 0.5, ease: "elastic.out(1, 0.5)" }
-  );
-};
+// Quick punch up then elastic spring back — drives the score number element.
+export function animateScoreUpdate(element: HTMLElement): void {
+  const tl = gsap.timeline();
+  tl.to(element, { scale: 1.55, duration: 0.14, ease: "power2.out" }).to(element, {
+    scale: 1,
+    duration: 0.58,
+    ease: "elastic.out(1, 0.4)",
+  });
+}

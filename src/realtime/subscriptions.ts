@@ -1,7 +1,8 @@
 import { useEffect } from "react";
 import { supabase } from "@/services/supabase";
+import { getGameChannel } from "@/realtime/channels";
 import { useGameStore } from "@/store/gameStore";
-import type { Game, BoardAnswer, BoardQuestion } from "@/types/game";
+import type { Game, BoardAnswer, BoardQuestion, GameEvent } from "@/types/game";
 
 async function fetchBoardState(sessionCode: string) {
   const { data: game, error } = await supabase
@@ -60,7 +61,7 @@ export function useGameSubscription(sessionCode: string | null) {
   const store = useGameStore();
   const gameId = store.game?.id;
 
-  // Initial fetch — runs when sessionCode is known
+  // Initial board state fetch — runs when sessionCode is first known
   useEffect(() => {
     if (!sessionCode) {
       store.setError("No session code provided. Use /board?session=CODE");
@@ -86,21 +87,26 @@ export function useGameSubscription(sessionCode: string | null) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionCode]);
 
-  // Realtime subscriptions — runs once gameId is known
+  // Realtime subscriptions — set up once gameId is known from the initial fetch
   useEffect(() => {
     if (!sessionCode || !gameId) return;
 
-    const channel = supabase
-      .channel(`board:${sessionCode}`)
+    const channel = getGameChannel(sessionCode)
+      // Game row changes: scores, strikes, status, round
       .on(
         "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "games", filter: `id=eq.${gameId}` },
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "games",
+          filter: `id=eq.${gameId}`,
+        },
         async (payload) => {
           const updated = payload.new as Game;
           const prev = useGameStore.getState().game;
           useGameStore.getState().patchGame(updated);
 
-          // Round changed — fetch new question and reset answers
+          // Round changed — fetch the new question + its answers
           if (
             prev &&
             updated.current_question_id !== prev.current_question_id &&
@@ -114,14 +120,33 @@ export function useGameSubscription(sessionCode: string | null) {
           }
         }
       )
+      // Answer row changes: granular reveal updates
       .on(
         "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "answers" },
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "answers",
+        },
         (payload) => {
           const updated = payload.new as BoardAnswer;
           if (updated.revealed) {
             useGameStore.getState().revealAnswer(updated.id);
           }
+        }
+      )
+      // Game events: semantic event stream — drives animations and sounds (Phases 6–8)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "game_events",
+          filter: `game_id=eq.${gameId}`,
+        },
+        (payload) => {
+          const event = payload.new as GameEvent;
+          useGameStore.getState().setLastEvent(event);
         }
       )
       .subscribe((status) => {

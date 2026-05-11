@@ -189,7 +189,7 @@ export const TeamSetup = ({
                 </Button>
               </div>
               <div>
-                <Link to="/host">
+                <Link to="/view-questions">
                   <Button className="text-lg" variant="game">
                     Host
                   </Button>

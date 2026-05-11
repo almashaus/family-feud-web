@@ -17,7 +17,7 @@ const Index = () => {
       refreshWhenOffline: false,
       refreshWhenHidden: false,
       refreshInterval: 0,
-    }
+    },
   );
 
   useEffect(() => {
@@ -25,7 +25,9 @@ const Index = () => {
       const sortedQuestions = data.sort((a, b) => a.id - b.id);
       const sortedData = sortedQuestions.map((question) => ({
         ...question,
-        answers: question.answers.sort((a, b) => b.points - a.points),
+        answers: question.answers
+          .sort((a, b) => b.points - a.points)
+          .map((answer) => ({ ...answer, revealed: false })),
       })) as GameQuestion[];
       setQuestions(sortedData);
     }

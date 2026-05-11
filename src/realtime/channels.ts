@@ -1,7 +1,8 @@
-// Phase 5: Supabase Realtime channel setup
-// Each game session gets an isolated channel keyed by session code.
-
 import { supabase } from "@/services/supabase";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 
-export const getGameChannel = (sessionCode: string) =>
-  supabase.channel(`game:${sessionCode}`);
+// Each game session gets an isolated realtime channel.
+// Supabase deduplicates channels by name — safe to call multiple times.
+export function getGameChannel(sessionCode: string): RealtimeChannel {
+  return supabase.channel(`game:${sessionCode}`);
+}
