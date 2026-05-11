@@ -1,11 +1,11 @@
-import { FamilyFeudGame } from "@/components/FamilyFeudGame";
+import { FamilyFeudGame } from "@/components/v1/FamilyFeudGame";
 import { GameQuestion } from "@/types/game";
 import { fetchQuestionsData } from "@/services/supabaseFunctions";
 import FamilyFeudLogo from "/images/FF-logo.png";
 import { useEffect, useState } from "react";
 import useSWRImmutable from "swr";
 
-const Index = () => {
+const IndexV1 = () => {
   const [questions, setQuestions] = useState<GameQuestion[]>([]);
 
   const { data, error, isLoading } = useSWRImmutable(
@@ -52,4 +52,4 @@ const Index = () => {
   }
 };
 
-export default Index;
+export default IndexV1;

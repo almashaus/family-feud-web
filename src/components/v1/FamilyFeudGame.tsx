@@ -84,7 +84,7 @@ export const FamilyFeudGame = ({
         return prev;
       });
     },
-    [gameState.isHost, gameState.currentQuestion]
+    [gameState.isHost, gameState.currentQuestion],
   );
 
   const handleLeadPoints = useCallback(
@@ -111,7 +111,7 @@ export const FamilyFeudGame = ({
         return prev;
       });
     },
-    [gameState.isHost, gameState.currentQuestion]
+    [gameState.isHost, gameState.currentQuestion],
   );
 
   const handleStealPoints = useCallback(
@@ -119,7 +119,7 @@ export const FamilyFeudGame = ({
       team1Points: number,
       team2Points: number,
       teamNumber: number,
-      answerIndex: number
+      answerIndex: number,
     ) => {
       if (!gameState.isHost) return;
 
@@ -145,7 +145,7 @@ export const FamilyFeudGame = ({
         };
       });
     },
-    [gameState.isHost, gameState.currentQuestion]
+    [gameState.isHost, gameState.currentQuestion],
   );
 
   const handleScoreChange = useCallback(
@@ -170,7 +170,7 @@ export const FamilyFeudGame = ({
         return prev;
       });
     },
-    [gameState.isHost, gameState.currentQuestion]
+    [gameState.isHost, gameState.currentQuestion],
   );
 
   const handleRevealAllAnswers = useCallback(async () => {
@@ -212,14 +212,14 @@ export const FamilyFeudGame = ({
         return prev;
       });
     },
-    [gameState.isHost, gameState.currentQuestion]
+    [gameState.isHost, gameState.currentQuestion],
   );
 
   const handleGameBegin = useCallback(
     async (_isGameBegin: boolean, startId?: number, endId?: number) => {
       if (startId && endId && startId <= endId) {
         const filtered = gameQuestions.filter(
-          (q) => q.id >= startId && q.id <= endId
+          (q) => q.id >= startId && q.id <= endId,
         );
         setFilteredQuestions(filtered);
         setGameState((prev) => ({
@@ -237,7 +237,7 @@ export const FamilyFeudGame = ({
         }));
       }
     },
-    [gameQuestions]
+    [gameQuestions],
   );
 
   const handleAddStrike = useCallback(() => {
@@ -300,7 +300,7 @@ export const FamilyFeudGame = ({
         teams: { team1: team1Name, team2: team2Name },
       }));
     },
-    []
+    [],
   );
 
   const handleHostPage = useCallback((isHost: boolean) => {
@@ -333,7 +333,7 @@ export const FamilyFeudGame = ({
         currentRound: 1,
       }));
     },
-    [gameQuestions]
+    [gameQuestions],
   );
 
   if (!gameState.gameEntered) {

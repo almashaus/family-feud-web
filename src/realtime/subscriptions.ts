@@ -58,31 +58,34 @@ async function fetchQuestionWithAnswers(questionId: number) {
 }
 
 export function useGameSubscription(sessionCode: string | null) {
-  const store = useGameStore();
-  const gameId = store.game?.id;
+  // Targeted selector — only re-renders when game id changes, not on every store mutation
+  const gameId = useGameStore((s) => s.game?.id);
 
   // Initial board state fetch — runs when sessionCode is first known
   useEffect(() => {
+    const { setError, setIsLoading, setGame, setQuestion, setAnswers, reset } =
+      useGameStore.getState();
+
     if (!sessionCode) {
-      store.setError("No session code provided. Use /board?session=CODE");
+      setError("No session code provided. Use /board?session=CODE");
       return;
     }
 
-    store.setIsLoading(true);
+    setIsLoading(true);
     fetchBoardState(sessionCode).then((data) => {
       if (!data) {
-        store.setError("Game not found.");
-        store.setIsLoading(false);
+        useGameStore.getState().setError("Game not found.");
+        useGameStore.getState().setIsLoading(false);
         return;
       }
-      store.setGame(data.game);
-      store.setQuestion(data.question);
-      store.setAnswers(data.answers);
-      store.setIsLoading(false);
+      setGame(data.game);
+      setQuestion(data.question);
+      setAnswers(data.answers);
+      useGameStore.getState().setIsLoading(false);
     });
 
     return () => {
-      store.reset();
+      reset();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionCode]);
@@ -150,7 +153,18 @@ export function useGameSubscription(sessionCode: string | null) {
         }
       )
       .subscribe((status) => {
-        useGameStore.getState().setIsConnected(status === "SUBSCRIBED");
+        const connected = status === "SUBSCRIBED";
+        useGameStore.getState().setIsConnected(connected);
+
+        if (status === "CHANNEL_ERROR") {
+          useGameStore
+            .getState()
+            .setError("Realtime connection error. Please refresh the page.");
+        } else if (status === "TIMED_OUT") {
+          useGameStore
+            .getState()
+            .setError("Connection timed out. Please refresh the page.");
+        }
       });
 
     return () => {

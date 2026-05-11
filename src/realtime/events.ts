@@ -9,6 +9,7 @@ export const GameEvents = {
   GAME_ENDED: "GAME_ENDED",
   ALL_ANSWERS_REVEALED: "ALL_ANSWERS_REVEALED",
   TEAM_SELECTED: "TEAM_SELECTED",
+  QUESTION_REVEALED: "QUESTION_REVEALED",
 } as const;
 
 export type GameEventType = (typeof GameEvents)[keyof typeof GameEvents];
@@ -48,6 +49,10 @@ export interface TeamSelectedPayload {
   team: "team_a" | "team_b" | null;
 }
 
+export interface QuestionRevealedPayload {
+  questionDbId: number;
+}
+
 // --- Handler contract — consumed by useGameEvents ---
 
 export interface GameEventHandlers {
@@ -61,4 +66,5 @@ export interface GameEventHandlers {
   onGameStarted?: (payload: GameStartedPayload) => void;
   onGameEnded?: () => void;
   onTeamSelected?: (payload: TeamSelectedPayload) => void;
+  onQuestionRevealed?: (payload: QuestionRevealedPayload) => void;
 }

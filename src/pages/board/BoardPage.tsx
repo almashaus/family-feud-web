@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, memo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { XIcon } from "lucide-react";
@@ -14,6 +14,7 @@ import {
 import { animateStrike } from "@/animations/strike";
 import { animateScoreUpdate } from "@/animations/score";
 import { soundManager } from "@/audio";
+import { usePresence } from "@/realtime/usePresence";
 import type { BoardAnswer, GameStatus } from "@/types/game";
 import FamilyFeudLogo from "/images/FF-logo.png";
 import BonaLogo from "/images/BB-logo.png";
@@ -22,12 +23,23 @@ export default function BoardPage() {
   const [searchParams] = useSearchParams();
   const sessionCode = searchParams.get("session");
 
-  const { game, question, answers, isLoading, error } = useGameStore();
+  // Selective subscriptions — each re-renders this component only when its own slice changes
+  const game = useGameStore((s) => s.game);
+  const question = useGameStore((s) => s.question);
+  const answers = useGameStore((s) => s.answers);
+  const isLoading = useGameStore((s) => s.isLoading);
+  const error = useGameStore((s) => s.error);
+  const isConnected = useGameStore((s) => s.isConnected);
 
   const [isRevealQuestion, setIsRevealQuestion] = useState(false);
   const [flashTeam, setFlashTeam] = useState<"team_a" | "team_b" | null>(null);
   const [flashStrikeIndex, setFlashStrikeIndex] = useState<number | null>(null);
   const [selectedTeam, setSelectedTeam] = useState<"team_a" | "team_b" | null>(null);
+  const [connectionLost, setConnectionLost] = useState(false);
+  const [showStrikeOverlay, setShowStrikeOverlay] = useState(false);
+  const connectionLostTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const strikeOverlayRef = useRef<HTMLDivElement>(null);
+  const prevStrikes = useRef<number | undefined>();
 
   // Board-level ref for round transitions and game-start entrance
   const boardRef = useRef<HTMLDivElement>(null);
@@ -42,6 +54,7 @@ export default function BoardPage() {
   const roundInPending = useRef(false);
 
   useGameSubscription(sessionCode);
+  const { hostOnline } = usePresence(sessionCode, "board");
 
   // Preload all sounds after mount so they're ready when events fire.
   useEffect(() => {
@@ -64,7 +77,6 @@ export default function BoardPage() {
     onStrikeAdded: ({ strikes }) => {
       setFlashStrikeIndex(strikes - 1);
       soundManager.playStrike();
-      // X icon animation handled inside StrikeIndicator via useEffect on active prop
     },
     onStrikeRemoved: () => setFlashStrikeIndex(null),
     onStrikesReset: () => setFlashStrikeIndex(null),
@@ -94,7 +106,30 @@ export default function BoardPage() {
     onTeamSelected: ({ team }) => {
       setSelectedTeam(team);
     },
+    onQuestionRevealed: () => {
+      setIsRevealQuestion(true);
+    },
   });
+
+  // Show "connection lost" banner after 15 s of being disconnected (only if game is loaded)
+  useEffect(() => {
+    if (connectionLostTimerRef.current) {
+      clearTimeout(connectionLostTimerRef.current);
+      connectionLostTimerRef.current = null;
+    }
+    if (!isConnected && game) {
+      connectionLostTimerRef.current = setTimeout(
+        () => setConnectionLost(true),
+        15000
+      );
+    } else {
+      setConnectionLost(false);
+    }
+    return () => {
+      if (connectionLostTimerRef.current)
+        clearTimeout(connectionLostTimerRef.current);
+    };
+  }, [isConnected, game]);
 
   // Auto-clear flash states once their CSS transition completes
   useEffect(() => {
@@ -108,6 +143,22 @@ export default function BoardPage() {
     const t = setTimeout(() => setFlashStrikeIndex(null), 600);
     return () => clearTimeout(t);
   }, [flashStrikeIndex]);
+
+  // Show overlay whenever strikes increases — fires at the same time as the small X icon
+  useEffect(() => {
+    const current = game?.strikes ?? 0;
+    if (prevStrikes.current !== undefined && current > prevStrikes.current) {
+      setShowStrikeOverlay(true);
+    }
+    prevStrikes.current = current;
+  }, [game?.strikes]);
+
+  useEffect(() => {
+    if (!showStrikeOverlay || !strikeOverlayRef.current) return;
+    animateStrike(strikeOverlayRef.current);
+    const t = setTimeout(() => setShowStrikeOverlay(false), 1500);
+    return () => clearTimeout(t);
+  }, [showStrikeOverlay]);
 
   // Game-start board entrance — fires once when status transitions waiting → active
   useEffect(() => {
@@ -184,6 +235,14 @@ export default function BoardPage() {
           <p className="game-board-font text-yellow-300 text-lg mt-2">
             Session: {game.session_code}
           </p>
+          <p className="game-board-font text-sm mt-3">
+            <span
+              className={`inline-block w-2 h-2 rounded-full mr-1 ${isConnected ? "bg-green-400" : "bg-gray-500"}`}
+            />
+            <span className={isConnected ? "text-green-400" : "text-gray-400"}>
+              {isConnected ? "Connected" : "Connecting..."}
+            </span>
+          </p>
         </Card>
       </div>
     );
@@ -235,6 +294,22 @@ export default function BoardPage() {
 
   return (
     <div className="min-h-screen bg-gradient-bg sparkle-bg p-2 md:p-4">
+      {showStrikeOverlay && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none bg-black/40">
+          <div ref={strikeOverlayRef}>
+            <XIcon
+              className="text-red-600 w-64 h-64 md:w-96 md:h-96"
+              strokeWidth={6}
+              style={{ filter: "drop-shadow(0 0 40px rgba(220,38,38,0.9))" }}
+            />
+          </div>
+        </div>
+      )}
+      {connectionLost && (
+        <div className="fixed top-0 left-0 right-0 z-50 bg-red-700 text-white text-center py-2 game-board-font text-sm">
+          Connection lost — please refresh the page
+        </div>
+      )}
       <div ref={boardRef} className="flex flex-col gap-4">
         {/* Top bar: logos + question number */}
         <div className="flex flex-col md:flex-row justify-between items-center">
@@ -248,11 +323,25 @@ export default function BoardPage() {
               {question?.question_number ?? "—"}
             </h2>
           </Card>
-          <img
-            src={BonaLogo}
-            alt="Bona Banana Logo"
-            className="hidden md:inline w-24 h-16"
-          />
+          <div className="hidden md:flex flex-col items-center gap-1">
+            <img src={BonaLogo} alt="Bona Banana Logo" className="w-24 h-16" />
+            <span className="game-board-font text-xs">
+              <span
+                className={`inline-block w-2 h-2 rounded-full mr-1 ${hostOnline ? "bg-green-400" : "bg-gray-500"}`}
+              />
+              <span className={hostOnline ? "text-green-400" : "text-gray-400"}>
+                {hostOnline ? "HOST ONLINE" : "HOST OFFLINE"}
+              </span>
+            </span>
+            <span className="game-board-font text-xs">
+              <span
+                className={`inline-block w-2 h-2 rounded-full mr-1 ${isConnected ? "bg-green-400" : "bg-yellow-400"}`}
+              />
+              <span className={isConnected ? "text-green-400" : "text-yellow-400"}>
+                {isConnected ? "Connected" : "Reconnecting..."}
+              </span>
+            </span>
+          </div>
         </div>
 
         {/* Question */}
@@ -357,7 +446,7 @@ export default function BoardPage() {
   );
 }
 
-function AnswerSlot({
+const AnswerSlot = memo(function AnswerSlot({
   number,
   answer,
 }: {
@@ -408,42 +497,27 @@ function AnswerSlot({
       )}
     </div>
   );
-}
+});
 
-function StrikeIndicator({
+const StrikeIndicator = memo(function StrikeIndicator({
   active,
   isFlashing,
 }: {
   active: boolean;
   isFlashing: boolean;
 }) {
-  const iconRef = useRef<HTMLDivElement>(null);
-  // Track previous active state to only animate the false → true transition
-  const wasActive = useRef(active);
-
-  useEffect(() => {
-    if (active && !wasActive.current && iconRef.current) {
-      animateStrike(iconRef.current);
-    }
-    wasActive.current = active;
-  }, [active]);
-
   return (
     <div
       className={`w-10 h-10 rounded-full border-4 border-gold-border flex items-center justify-center transition-transform duration-300 ${
         isFlashing ? "scale-125" : ""
       }`}
     >
-      {active && (
-        <div ref={iconRef}>
-          <XIcon className="text-red-600 w-8 h-8" strokeWidth={5} />
-        </div>
-      )}
+      {active && <XIcon className="text-red-600 w-8 h-8" strokeWidth={5} />}
     </div>
   );
-}
+});
 
-function TeamCard({
+const TeamCard = memo(function TeamCard({
   name,
   score,
   isFlashing = false,
@@ -483,4 +557,4 @@ function TeamCard({
       </div>
     </Card>
   );
-}
+});

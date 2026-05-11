@@ -1,19 +1,12 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Plus, Trash2, Save, ArrowLeft, PlusIcon } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Trash2, ArrowLeft, PlusIcon } from "lucide-react";
 import useSWR, { mutate } from "swr";
 import { Link } from "react-router-dom";
 import { deleteData, fetchQuestionsData } from "@/services/supabaseFunctions";
 import { GameQuestion } from "@/types/game";
+import { useToast } from "@/hooks/use-toast";
 
 interface Answer {
   text: string;
@@ -21,6 +14,7 @@ interface Answer {
 }
 
 const ViewQuestions = () => {
+  const { toast } = useToast();
   const [questions, setQuestions] = useState<GameQuestion[]>([]);
 
   const { data, error, isLoading } = useSWR("questions", fetchQuestionsData, {
@@ -43,14 +37,42 @@ const ViewQuestions = () => {
   }, [data]);
 
   const handleDeleteQuestion = async (id: number) => {
-    const isDeleted = await deleteData("questions", "question_number", id);
-    if (isDeleted) {
+    const ok = await deleteData("questions", "question_number", id);
+    if (ok) {
       await mutate("questions");
+    } else {
+      toast({ title: "Failed to delete question", variant: "destructive" });
     }
   };
 
-  if (error) return <div className="container text-center">failed to load</div>;
-  if (isLoading) return <div className="container text-center">loading...</div>;
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-bg sparkle-bg flex items-center justify-center">
+        <Card className="bg-gradient-board border-gold-border border-4 p-8 text-center shadow-board">
+          <p className="game-board-font text-primary-foreground text-xl">
+            Failed to load questions
+          </p>
+          <Button
+            variant="gold"
+            className="mt-4"
+            onClick={() => mutate("questions")}
+          >
+            Retry
+          </Button>
+        </Card>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-bg sparkle-bg flex items-center justify-center">
+        <p className="game-board-font text-primary-foreground text-2xl">
+          Loading...
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-bg sparkle-bg relative overflow-hidden">
@@ -109,7 +131,7 @@ const ViewQuestions = () => {
                     className={`grid grid-cols-1 md:grid-cols-2 md:grid-flow-col gap-4`}
                     style={{
                       gridTemplateRows: `repeat(${Math.ceil(
-                        item.answers.length / 2
+                        item.answers.length / 2,
                       )}, minmax(0, 1fr))`,
                     }}
                   >
@@ -117,10 +139,9 @@ const ViewQuestions = () => {
                       (answer, index) => (
                         <AnswerSlot
                           key={index}
-                          number={index + 1}
                           answer={answer}
                         />
-                      )
+                      ),
                     )}
                   </div>
                 </div>
@@ -145,11 +166,11 @@ const ViewQuestions = () => {
 
 export default ViewQuestions;
 
-const AnswerSlot = ({ number, answer }: { number: number; answer: Answer }) => {
+const AnswerSlot = ({ answer }: { answer: Answer }) => {
   return (
     <div
       className="
-        relative h-20 min-w-50 bg-gradient-primary shadow-glow-answer 
+        relative h-20 min-w-50 bg-transparent shadow-glow-answer
         border-4 border-primary-foreground rounded-xl overflow-hidden"
     >
       <div className="flex items-center justify-between h-full px-2">

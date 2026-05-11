@@ -4,17 +4,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  ArrowRight,
-  ArrowLeft,
-  XIcon,
-  Undo2,
-  Copy,
-  Check,
-  Undo,
-} from "lucide-react";
+import { ArrowRight, ArrowLeft, XIcon, Copy, Check, Undo } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/useAuth";
 import { fetchQuestionsData } from "@/services/supabaseFunctions";
 import type { GameQuestion, Game } from "@/types/game";
 import {
@@ -24,15 +15,16 @@ import {
   endGame,
   generateSessionCode,
   selectTeam,
+  revealQuestion,
 } from "@/features/game";
 import {
   revealAnswer,
-  revealAllAnswers,
   resetAnswersForQuestion,
   fetchAnswersForQuestion,
 } from "@/features/answers";
 import { updateScore, awardPoints } from "@/features/scores";
 import { addStrike, removeStrike, resetStrikes } from "@/features/strikes";
+import { usePresence } from "@/realtime/usePresence";
 import { cn } from "@/lib/utils";
 
 type Phase = "setup" | "active" | "finished";
@@ -48,8 +40,6 @@ interface LocalAnswer {
 export default function HostGame() {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { signOut } = useAuth();
-
   const [phase, setPhase] = useState<Phase>("setup");
   const [allQuestions, setAllQuestions] = useState<GameQuestion[]>([]);
   const [filteredQuestions, setFilteredQuestions] = useState<GameQuestion[]>(
@@ -76,6 +66,7 @@ export default function HostGame() {
 
   const [copied, setCopied] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [roundInput, setRoundInput] = useState("1");
 
   useEffect(() => {
     fetchQuestionsData().then((qs) => {
@@ -95,6 +86,10 @@ export default function HostGame() {
   useEffect(() => {
     if (currentQuestion) loadAnswers(currentQuestion);
   }, [currentQuestion, loadAnswers]);
+
+  useEffect(() => {
+    if (currentQuestion) setRoundInput(String(currentQuestion.id));
+  }, [currentIndex, currentQuestion]);
 
   const handleCreate = async () => {
     const sId = startId ? parseInt(startId) : null;
@@ -175,33 +170,10 @@ export default function HostGame() {
     setIsLoading(false);
   };
 
-  const handleRevealAll = async () => {
-    if (!game || !currentQuestion) return;
-    const hiddenAnswers = answers.filter((a) => !a.revealed);
-    if (hiddenAnswers.length === 0) return;
-
+  const handleRevealQuestion = async () => {
+    if (!game || !currentQuestion?.dbId) return;
     setIsLoading(true);
-    const ok = await revealAllAnswers(
-      game.id,
-      hiddenAnswers.map((a) => a.id),
-      currentQuestion.dbId!,
-    );
-    if (ok) {
-      setAnswers((prev) => prev.map((a) => ({ ...a, revealed: true })));
-      if (selectedTeam) {
-        const totalPoints = hiddenAnswers.reduce((sum, a) => sum + a.points, 0);
-        const currentScore = selectedTeam === "team_a" ? scoreA : scoreB;
-        const newScore = currentScore + totalPoints;
-        if (selectedTeam === "team_a") {
-          setScoreA(newScore);
-          setGame((g) => g && { ...g, team_a_score: newScore });
-        } else {
-          setScoreB(newScore);
-          setGame((g) => g && { ...g, team_b_score: newScore });
-        }
-        await awardPoints(game.id, selectedTeam, currentScore, totalPoints);
-      }
-    }
+    await revealQuestion(game.id, currentQuestion.dbId);
     setIsLoading(false);
   };
 
@@ -237,7 +209,12 @@ export default function HostGame() {
     const nextQ = filteredQuestions[nextIndex];
 
     setIsLoading(true);
-    await nextRound(game.id, nextQ.dbId!, nextIndex + 1);
+    const ok = await nextRound(game.id, nextQ.dbId!, nextIndex + 1);
+    if (!ok) {
+      toast({ title: "Failed to advance round", variant: "destructive" });
+      setIsLoading(false);
+      return;
+    }
     await resetStrikes(game.id);
     setGame((g) => g && { ...g, current_question_id: nextQ.dbId!, strikes: 0 });
     setCurrentIndex(nextIndex);
@@ -252,7 +229,15 @@ export default function HostGame() {
     const prevQ = filteredQuestions[prevIndex];
 
     setIsLoading(true);
-    await nextRound(game.id, prevQ.dbId!, prevIndex + 1);
+    const ok = await nextRound(game.id, prevQ.dbId!, prevIndex + 1);
+    if (!ok) {
+      toast({
+        title: "Failed to go to previous round",
+        variant: "destructive",
+      });
+      setIsLoading(false);
+      return;
+    }
     await resetStrikes(game.id);
     setGame((g) => g && { ...g, current_question_id: prevQ.dbId!, strikes: 0 });
     setCurrentIndex(prevIndex);
@@ -261,9 +246,39 @@ export default function HostGame() {
     setIsLoading(false);
   };
 
+  const handleGoToRound = async (targetIndex: number) => {
+    if (!game) return;
+    if (targetIndex === currentIndex) return;
+    if (targetIndex < 0 || targetIndex >= filteredQuestions.length) {
+      setRoundInput(String(currentIndex + 1));
+      return;
+    }
+    const targetQ = filteredQuestions[targetIndex];
+    setIsLoading(true);
+    const ok = await nextRound(game.id, targetQ.dbId!, targetIndex + 1);
+    if (!ok) {
+      toast({ title: "Failed to go to that round", variant: "destructive" });
+      setRoundInput(String(currentIndex + 1));
+      setIsLoading(false);
+      return;
+    }
+    await resetStrikes(game.id);
+    setGame(
+      (g) => g && { ...g, current_question_id: targetQ.dbId!, strikes: 0 },
+    );
+    setCurrentIndex(targetIndex);
+    setSelectedTeam(null);
+    await selectTeam(game.id, null);
+    setIsLoading(false);
+  };
+
   const handleEndGame = async () => {
     if (!game) return;
-    await endGame(game.id);
+    const ok = await endGame(game.id);
+    if (!ok) {
+      toast({ title: "Failed to end game", variant: "destructive" });
+      return;
+    }
     setPhase("finished");
   };
 
@@ -271,7 +286,10 @@ export default function HostGame() {
     if (!game) return;
     const next = selectedTeam === team ? null : team;
     setSelectedTeam(next);
-    await selectTeam(game.id, next);
+    const ok = await selectTeam(game.id, next);
+    if (!ok) {
+      setSelectedTeam(selectedTeam);
+    }
   };
 
   const handleNewGame = () => {
@@ -288,6 +306,8 @@ export default function HostGame() {
     setEndId("");
   };
 
+  const { boardCount } = usePresence(game?.session_code ?? null, "host");
+
   const boardUrl = game
     ? `${window.location.origin}/board?session=${game.session_code}`
     : "";
@@ -296,11 +316,6 @@ export default function HostGame() {
     navigator.clipboard.writeText(boardUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-  };
-
-  const handleSignOut = async () => {
-    await signOut();
-    navigate("/login");
   };
 
   if (phase === "setup") {
@@ -358,8 +373,8 @@ export default function HostGame() {
             </div>
 
             <Button
-              variant="game"
-              className="w-full bg-gradient-primary game-board-font md:text-lg font-bold py-6 tracking-wide pulse-glow"
+              variant="gold"
+              className="w-full game-board-font md:text-lg text-primary-foreground font-bold py-6 tracking-wider pulse-glow"
               onClick={handleCreate}
               disabled={isCreating || allQuestions.length === 0}
             >
@@ -368,15 +383,15 @@ export default function HostGame() {
 
             <div className="grid grid-cols-2 gap-2">
               <Button
-                variant="green"
-                className="w-full border-gold-border game-board-font text-sm py-6 tracking-wide"
+                variant="game"
+                className="w-full border-gold-border border-2 game-board-font text-sm py-6 tracking-wide"
                 onClick={() => navigate("/host/view-questions")}
               >
                 VIEW ALL QUESTIONS
               </Button>
 
               <Button
-                variant="yellow"
+                variant="green"
                 className="w-full border-gold-border game-board-font text-sm py-6 tracking-wide"
                 onClick={() => navigate("/host/add-question")}
               >
@@ -385,11 +400,12 @@ export default function HostGame() {
             </div>
             <div className="flex justify-center">
               <Button
-                onClick={handleSignOut}
+                onClick={() => navigate("/")}
                 variant="link"
-                className="text-lg text-primary"
+                className="text-lg text-muted-foreground gap-2"
               >
-                Sign Out
+                <ArrowLeft className="w-4 h-4" />
+                Back
               </Button>
             </div>
           </div>
@@ -428,10 +444,18 @@ export default function HostGame() {
         {/* Header: session + board URL */}
         <Card className="bg-gradient-board border-gold-border border-4 p-3 shadow-gold">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
-            <span className="game-board-font text-primary-foreground text-lg">
-              SESSION:{" "}
-              <span className="text-yellow-300">{game?.session_code}</span>
-            </span>
+            <div className="flex flex-col items-start gap-0.5">
+              <span className="game-board-font text-primary-foreground text-lg">
+                SESSION:{" "}
+                <span className="text-yellow-300">{game?.session_code}</span>
+              </span>
+              <span className="game-board-font text-xs text-green-400">
+                <span
+                  className={`inline-block w-2 h-2 rounded-full mr-1 ${boardCount > 0 ? "bg-green-400" : "bg-gray-500"}`}
+                />
+                {boardCount} {boardCount === 1 ? "board" : "boards"} connected
+              </span>
+            </div>
             <div className="flex items-center gap-2 w-2/3">
               <Input
                 readOnly
@@ -483,7 +507,7 @@ export default function HostGame() {
                 handleScoreAChange(parseInt(e.target.value) || 0)
               }
               onClick={(e) => e.stopPropagation()}
-              className="game-board-font text-3xl text-center w-1/3 min-w-24 bg-transparent text-primary-foreground border-2 border-white rounded-lg"
+              className="game-board-font text-3xl text-center w-1/3 min-w-24 bg-transparent text-primary-foreground border-2 border-gold-border rounded-lg"
             />
           </Card>
           <Card
@@ -505,7 +529,7 @@ export default function HostGame() {
                 handleScoreBChange(parseInt(e.target.value) || 0)
               }
               onClick={(e) => e.stopPropagation()}
-              className="game-board-font text-3xl text-center w-1/3 min-w-24 bg-transparent text-primary-foreground border-2 border-white rounded-lg"
+              className="game-board-font text-3xl text-center w-1/3 min-w-24 bg-transparent text-primary-foreground border-2 border-gold-border rounded-lg"
             />
           </Card>
         </div>
@@ -522,8 +546,30 @@ export default function HostGame() {
             >
               <ArrowLeft className="w-4 h-4" />
             </Button>
-            <span className="game-board-font text-primary-foreground">
-              ROUND {currentIndex + 1} / {filteredQuestions.length}
+            <span className="game-board-font text-primary-foreground flex items-center gap-2">
+              ROUND
+              <input
+                type="number"
+                value={roundInput}
+                onChange={(e) => setRoundInput(e.target.value)}
+                onBlur={() => {
+                  const n = parseInt(roundInput);
+                  const idx = filteredQuestions.findIndex((q) => q.id === n);
+                  if (idx !== -1) handleGoToRound(idx);
+                  else setRoundInput(String(currentQuestion?.id ?? ""));
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    const n = parseInt(roundInput);
+                    const idx = filteredQuestions.findIndex((q) => q.id === n);
+                    if (idx !== -1) handleGoToRound(idx);
+                    else setRoundInput(String(currentQuestion?.id ?? ""));
+                    e.currentTarget.blur();
+                  }
+                }}
+                disabled={isLoading}
+                className="game-board-font text-primary-foreground text-center bg-transparent border-2 border-gold-border rounded-lg w-14 h-8 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              />
             </span>
             <Button
               size="sm"
@@ -550,10 +596,10 @@ export default function HostGame() {
               size="sm"
               variant="outline"
               className="border-gold-border text-xs"
-              onClick={handleRevealAll}
+              onClick={handleRevealQuestion}
               disabled={isLoading}
             >
-              REVEAL ALL
+              REVEAL QUESTION
             </Button>
           </div>
           <div className="space-y-2">

@@ -87,6 +87,18 @@ export async function endGame(gameId: number): Promise<boolean> {
   return true;
 }
 
+export async function revealQuestion(
+  gameId: number,
+  questionDbId: number
+): Promise<boolean> {
+  const { error } = await supabase.from("game_events").insert({
+    game_id: gameId,
+    type: GameEvents.QUESTION_REVEALED,
+    payload: { questionDbId },
+  });
+  return !error;
+}
+
 export async function selectTeam(
   gameId: number,
   team: GameTurn | null

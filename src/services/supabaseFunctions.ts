@@ -1,8 +1,23 @@
 import { GameQuestion } from "@/types/game";
 import { supabase } from "./supabase";
 
+type RawAnswerRow = {
+  id: number;
+  text: string | null;
+  points: number | null;
+  revealed: boolean | null;
+  position: number | null;
+};
+
+type RawQuestionRow = {
+  id: number;
+  question: string;
+  question_number: number;
+  answers: RawAnswerRow[];
+};
+
 export const fetchQuestionsData = async (): Promise<GameQuestion[]> => {
-  const { data, error } = await supabase.from("questions").select(`
+  const { data } = await supabase.from("questions").select(`
       id,
       question,
       question_number,
@@ -15,44 +30,40 @@ export const fetchQuestionsData = async (): Promise<GameQuestion[]> => {
       )
     `);
 
-  const questions: GameQuestion[] = (data ?? []).map(
-    (q: any) =>
-      ({
-        id: q.question_number,
-        dbId: q.id,
-        question: q.question,
-        answers: Array.isArray(q.answers)
-          ? q.answers.map((a: any) => ({
-              id: a.id,
-              text: a.text ?? "",
-              points: a.points ?? 0,
-              revealed: a.revealed ?? false,
-              position: a.position ?? 0,
-            }))
-          : [],
-      } as GameQuestion)
-  );
-
-  return questions;
+  return (data ?? []).map((q: RawQuestionRow) => ({
+    id: q.question_number,
+    dbId: q.id,
+    question: q.question,
+    answers: Array.isArray(q.answers)
+      ? q.answers.map((a) => ({
+          id: a.id,
+          text: a.text ?? "",
+          points: a.points ?? 0,
+          revealed: a.revealed ?? false,
+          position: a.position ?? 0,
+        }))
+      : [],
+  }));
 };
 
-export const fetchData = async (tableName: string): Promise<any> => {
+export const fetchData = async (
+  tableName: string
+): Promise<Record<string, unknown>[] | null> => {
   try {
-    const { data, error } = await supabase.from(tableName).select();
-
-    if (data) {
-      return data;
-    }
-  } catch (error) {
+    const { data } = await supabase.from(tableName).select();
+    return data ?? null;
+  } catch {
     return null;
   }
 };
+
+type ConditionValue = string | number | boolean;
 
 export const updateData = async (
   tableName: string,
   dataObject: object,
   columnName: string | string[],
-  condition: any | any[]
+  condition: ConditionValue | ConditionValue[]
 ): Promise<boolean> => {
   try {
     let query = supabase.from(tableName).update(dataObject);
@@ -61,16 +72,11 @@ export const updateData = async (
         query = query.eq(col, condition[idx]);
       });
     } else {
-      query = query.eq(columnName as string, condition);
+      query = query.eq(columnName as string, condition as ConditionValue);
     }
-    const { data, error } = await query.select();
-
-    if (error) {
-      return false;
-    } else {
-      return true;
-    }
-  } catch (error) {
+    const { error } = await query.select();
+    return !error;
+  } catch {
     return false;
   }
 };
@@ -78,21 +84,16 @@ export const updateData = async (
 export const deleteData = async (
   tableName: string,
   columnName: string,
-  condition: any
-): Promise<any> => {
+  condition: ConditionValue
+): Promise<boolean> => {
   try {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from(tableName)
       .delete()
       .eq(columnName, condition)
       .select();
-
-    if (data) {
-      return true;
-    } else {
-      return false;
-    }
-  } catch (error) {
+    return data !== null;
+  } catch {
     return false;
   }
 };

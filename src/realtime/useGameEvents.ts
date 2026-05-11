@@ -10,6 +10,7 @@ import {
   type RoundChangedPayload,
   type GameStartedPayload,
   type TeamSelectedPayload,
+  type QuestionRevealedPayload,
 } from "@/realtime/events";
 
 // Subscribes to lastEvent in the game store and dispatches to typed handlers.
@@ -58,6 +59,9 @@ export function useGameEvents(handlers: GameEventHandlers) {
         break;
       case GameEvents.TEAM_SELECTED:
         h.onTeamSelected?.(p as unknown as TeamSelectedPayload);
+        break;
+      case GameEvents.QUESTION_REVEALED:
+        h.onQuestionRevealed?.(p as unknown as QuestionRevealedPayload);
         break;
     }
   }, [lastEvent]);

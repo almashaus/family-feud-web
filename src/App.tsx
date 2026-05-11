@@ -1,21 +1,35 @@
+import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
-import NotFound from "./pages/NotFound";
-import AddQuestion from "./pages/host/AddQuestion";
-import ViewQuestions from "./pages/host/ViewQuestions";
-import HostGame from "./pages/host/HostGame";
-import BoardPage from "./pages/board/BoardPage";
 import LoginPage from "./pages/LoginPage";
+import HomePage from "./pages/HomePage";
+import NotFound from "./pages/NotFound";
 import { AuthProvider } from "./hooks/useAuth";
 import { ProtectedRoute } from "./components/ProtectedRoute";
-import CreateAccount from "./pages/CreateAccount";
-import UpdatePassword from "./pages/UpdatePassword";
+
+// Lazy-loaded routes — only downloaded when first visited
+const IndexV1 = lazy(() => import("./components/v1/IndexV1"));
+const AddQuestion = lazy(() => import("./pages/host/AddQuestion"));
+const ViewQuestions = lazy(() => import("./pages/host/ViewQuestions"));
+const HostGame = lazy(() => import("./pages/host/HostGame"));
+const BoardPage = lazy(() => import("./pages/board/BoardPage"));
+const CreateAccount = lazy(() => import("./pages/CreateAccount"));
+const UpdatePassword = lazy(() => import("./pages/UpdatePassword"));
 
 const queryClient = new QueryClient();
+
+function RouteLoadingFallback() {
+  return (
+    <div className="min-h-screen bg-gradient-bg sparkle-bg flex items-center justify-center">
+      <p className="game-board-font text-primary-foreground text-2xl">
+        Loading...
+      </p>
+    </div>
+  );
+}
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -24,12 +38,13 @@ const App = () => (
         <BrowserRouter>
           <Toaster />
           <Sonner />
+          <Suspense fallback={<RouteLoadingFallback />}>
           <Routes>
             <Route
               path="/v1"
               element={
                 <ProtectedRoute>
-                  <Index />
+                  <IndexV1 />
                 </ProtectedRoute>
               }
             />
@@ -59,12 +74,11 @@ const App = () => (
               }
             />
 
-            {/* TODO: create home page "/" */}
             <Route
               path="/"
               element={
                 <ProtectedRoute>
-                  <HostGame />
+                  <HomePage />
                 </ProtectedRoute>
               }
             />
@@ -87,6 +101,7 @@ const App = () => (
             />
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </Suspense>
         </BrowserRouter>
       </TooltipProvider>
     </AuthProvider>
