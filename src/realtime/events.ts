@@ -10,6 +10,8 @@ export const GameEvents = {
   ALL_ANSWERS_REVEALED: "ALL_ANSWERS_REVEALED",
   TEAM_SELECTED: "TEAM_SELECTED",
   QUESTION_REVEALED: "QUESTION_REVEALED",
+  STEAL_MODE_ACTIVATED: "STEAL_MODE_ACTIVATED",
+  STEAL_MODE_ENDED: "STEAL_MODE_ENDED",
 } as const;
 
 export type GameEventType = (typeof GameEvents)[keyof typeof GameEvents];
@@ -53,6 +55,17 @@ export interface QuestionRevealedPayload {
   questionDbId: number;
 }
 
+export interface StealModeActivatedPayload {
+  stealingTeam: "team_a" | "team_b";
+  originalTeam: "team_a" | "team_b";
+  roundPoints: number;
+}
+
+export interface StealModeEndedPayload {
+  success: boolean;
+  stealingTeam: "team_a" | "team_b";
+}
+
 // --- Handler contract — consumed by useGameEvents ---
 
 export interface GameEventHandlers {
@@ -67,4 +80,6 @@ export interface GameEventHandlers {
   onGameEnded?: () => void;
   onTeamSelected?: (payload: TeamSelectedPayload) => void;
   onQuestionRevealed?: (payload: QuestionRevealedPayload) => void;
+  onStealModeActivated?: (payload: StealModeActivatedPayload) => void;
+  onStealModeEnded?: (payload: StealModeEndedPayload) => void;
 }

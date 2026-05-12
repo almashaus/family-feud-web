@@ -16,6 +16,8 @@ import {
   generateSessionCode,
   selectTeam,
   revealQuestion,
+  activateStealMode,
+  endStealMode,
 } from "@/features/game";
 import {
   revealAnswer,
@@ -67,6 +69,16 @@ export default function HostGame() {
   const [copied, setCopied] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [roundInput, setRoundInput] = useState("1");
+
+  // Steal mode state
+  const [stealMode, setStealMode] = useState(false);
+  const [stealingTeam, setStealingTeam] = useState<"team_a" | "team_b" | null>(
+    null,
+  );
+  const [originalTeam, setOriginalTeam] = useState<"team_a" | "team_b" | null>(
+    null,
+  );
+  const [roundPoints, setRoundPoints] = useState(0);
 
   useEffect(() => {
     fetchQuestionsData().then((qs) => {
@@ -154,7 +166,45 @@ export default function HostGame() {
       setAnswers((prev) =>
         prev.map((a) => (a.id === answer.id ? { ...a, revealed: true } : a)),
       );
-      if (selectedTeam) {
+
+      if (stealMode && stealingTeam && originalTeam) {
+        // Steal successful — transfer accumulated round points + this answer's points
+        const currentStealScore = stealingTeam === "team_a" ? scoreA : scoreB;
+        const currentOriginalScore =
+          originalTeam === "team_a" ? scoreA : scoreB;
+        const totalSteal = roundPoints + answer.points;
+        const newStealScore = currentStealScore + totalSteal;
+        const newOriginalScore = Math.max(
+          0,
+          currentOriginalScore - roundPoints,
+        );
+
+        if (stealingTeam === "team_a") {
+          setScoreA(newStealScore);
+          setGame((g) => g && { ...g, team_a_score: newStealScore });
+        } else {
+          setScoreB(newStealScore);
+          setGame((g) => g && { ...g, team_b_score: newStealScore });
+        }
+        if (originalTeam === "team_a") {
+          setScoreA(newOriginalScore);
+          setGame((g) => g && { ...g, team_a_score: newOriginalScore });
+        } else {
+          setScoreB(newOriginalScore);
+          setGame((g) => g && { ...g, team_b_score: newOriginalScore });
+        }
+
+        await awardPoints(game.id, stealingTeam, currentStealScore, totalSteal);
+        await updateScore(game.id, originalTeam, newOriginalScore);
+        await endStealMode(game.id, true, stealingTeam);
+        await selectTeam(game.id, null);
+
+        setSelectedTeam(null);
+        setStealMode(false);
+        setStealingTeam(null);
+        setOriginalTeam(null);
+        setRoundPoints(0);
+      } else if (selectedTeam) {
         const currentScore = selectedTeam === "team_a" ? scoreA : scoreB;
         const newScore = currentScore + answer.points;
         if (selectedTeam === "team_a") {
@@ -179,14 +229,65 @@ export default function HostGame() {
 
   const handleAddStrike = async () => {
     if (!game) return;
+
+    if (stealMode) {
+      // Failed steal — add 1 strike to the stealing team's count and exit steal mode
+      const ok = await addStrike(game.id, game.strikes);
+      if (ok) setGame((g) => g && { ...g, strikes: g.strikes + 1 });
+      await endStealMode(game.id, false, stealingTeam!);
+      await selectTeam(game.id, null);
+      setSelectedTeam(null);
+      setStealMode(false);
+      setStealingTeam(null);
+      setOriginalTeam(null);
+      setRoundPoints(0);
+      return;
+    }
+
     const ok = await addStrike(game.id, game.strikes);
-    if (ok) setGame((g) => g && { ...g, strikes: g.strikes + 1 });
+    if (ok) {
+      const newStrikes = game.strikes + 1;
+      setGame((g) => g && { ...g, strikes: newStrikes });
+
+      // Auto-trigger steal mode when 3rd strike is reached and a team has possession
+      if (newStrikes >= 3 && selectedTeam) {
+        const other: "team_a" | "team_b" =
+          selectedTeam === "team_a" ? "team_b" : "team_a";
+        const pts = answers
+          .filter((a) => a.revealed)
+          .reduce((sum, a) => sum + a.points, 0);
+
+        await resetStrikes(game.id);
+        setGame((g) => g && { ...g, strikes: 0 });
+
+        await selectTeam(game.id, other);
+        setSelectedTeam(other);
+
+        await activateStealMode(game.id, other, selectedTeam, pts);
+
+        setStealMode(true);
+        setStealingTeam(other);
+        setOriginalTeam(selectedTeam);
+        setRoundPoints(pts);
+      }
+    }
   };
 
   const handleUndoStrike = async () => {
     if (!game) return;
     const ok = await removeStrike(game.id, game.strikes);
     if (ok) setGame((g) => g && { ...g, strikes: Math.max(0, g.strikes - 1) });
+  };
+
+  const handleCancelSteal = async () => {
+    if (!game || !stealingTeam) return;
+    await endStealMode(game.id, false, stealingTeam);
+    await selectTeam(game.id, null);
+    setSelectedTeam(null);
+    setStealMode(false);
+    setStealingTeam(null);
+    setOriginalTeam(null);
+    setRoundPoints(0);
   };
 
   const handleScoreAChange = async (val: number) => {
@@ -220,6 +321,10 @@ export default function HostGame() {
     setCurrentIndex(nextIndex);
     setSelectedTeam(null);
     await selectTeam(game.id, null);
+    setStealMode(false);
+    setStealingTeam(null);
+    setOriginalTeam(null);
+    setRoundPoints(0);
     setIsLoading(false);
   };
 
@@ -243,6 +348,10 @@ export default function HostGame() {
     setCurrentIndex(prevIndex);
     setSelectedTeam(null);
     await selectTeam(game.id, null);
+    setStealMode(false);
+    setStealingTeam(null);
+    setOriginalTeam(null);
+    setRoundPoints(0);
     setIsLoading(false);
   };
 
@@ -269,6 +378,10 @@ export default function HostGame() {
     setCurrentIndex(targetIndex);
     setSelectedTeam(null);
     await selectTeam(game.id, null);
+    setStealMode(false);
+    setStealingTeam(null);
+    setOriginalTeam(null);
+    setRoundPoints(0);
     setIsLoading(false);
   };
 
@@ -304,6 +417,10 @@ export default function HostGame() {
     setTeamBName("Champions");
     setStartId("");
     setEndId("");
+    setStealMode(false);
+    setStealingTeam(null);
+    setOriginalTeam(null);
+    setRoundPoints(0);
   };
 
   const { boardCount } = usePresence(game?.session_code ?? null, "host");
@@ -490,13 +607,22 @@ export default function HostGame() {
         <div className="grid grid-cols-2 gap-3">
           <Card
             className={cn(
-              "flex flex-col items-center border-gold-border border-4 p-3 shadow-gold cursor-pointer transition-all duration-200 select-none",
-              selectedTeam === "team_a"
-                ? "bg-gradient-gold"
-                : "bg-gradient-board",
+              "flex flex-col items-center border-4 p-3 shadow-gold cursor-pointer transition-all duration-200 select-none",
+              stealMode && originalTeam === "team_a"
+                ? "bg-red-950 border-red-500"
+                : stealMode && stealingTeam === "team_a"
+                  ? "bg-gradient-gold border-yellow-300"
+                  : selectedTeam === "team_a"
+                    ? "bg-gradient-gold border-gold-border"
+                    : "bg-gradient-board border-gold-border",
             )}
             onClick={() => handleSelectTeam("team_a")}
           >
+            {stealMode && originalTeam === "team_a" && (
+              <p className="game-board-font text-red-400 text-xs tracking-widest mb-1">
+                STEALING FROM
+              </p>
+            )}
             <p className="game-board-font text-primary-foreground text-center mb-1">
               {game?.team_a_name}
             </p>
@@ -512,13 +638,22 @@ export default function HostGame() {
           </Card>
           <Card
             className={cn(
-              "flex flex-col items-center border-gold-border border-4 p-3 shadow-gold cursor-pointer transition-all duration-200 select-none",
-              selectedTeam === "team_b"
-                ? "bg-gradient-gold"
-                : "bg-gradient-board",
+              "flex flex-col items-center border-4 p-3 shadow-gold cursor-pointer transition-all duration-200 select-none",
+              stealMode && originalTeam === "team_b"
+                ? "bg-red-950 border-red-500"
+                : stealMode && stealingTeam === "team_b"
+                  ? "bg-gradient-gold border-yellow-300"
+                  : selectedTeam === "team_b"
+                    ? "bg-gradient-gold border-gold-border"
+                    : "bg-gradient-board border-gold-border",
             )}
             onClick={() => handleSelectTeam("team_b")}
           >
+            {stealMode && originalTeam === "team_b" && (
+              <p className="game-board-font text-red-400 text-xs tracking-widest mb-1">
+                STEALING FROM
+              </p>
+            )}
             <p className="game-board-font text-primary-foreground text-center mb-1">
               {game?.team_b_name}
             </p>
@@ -646,46 +781,105 @@ export default function HostGame() {
           </div>
         </Card>
 
-        {/* Strikes */}
-        <Card className="bg-gradient-board border-gold-border border-4 p-3 shadow-gold">
-          <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center sm:gap-4">
-            <div className="flex items-center gap-2 order-1 sm:order-2">
-              <span className="game-board-font text-primary-foreground mr-2">
-                STRIKES
-              </span>
-              {[...Array(3)].map((_, i) => (
-                <div
-                  key={i}
-                  className="w-10 h-10 rounded-full border-4 border-gold-border flex items-center justify-center cursor-pointer"
+        {/* Strikes / Steal Mode */}
+        <Card
+          className={cn(
+            "border-4 p-3",
+            stealMode
+              ? "bg-red-950 border-red-500 shadow-[0_0_20px_rgba(239,68,68,0.4)]"
+              : "bg-gradient-board border-gold-border shadow-gold",
+          )}
+        >
+          {stealMode ? (
+            <div className="flex flex-col items-center gap-3">
+              <p className="game-board-font text-red-400 text-xl tracking-[0.3em] uppercase">
+                Steal Mode
+              </p>
+              <p className="game-board-font text-primary-foreground text-sm text-center">
+                {stealingTeam === "team_a"
+                  ? game.team_a_name
+                  : game.team_b_name}{" "}
+                — one chance to answer
+                {roundPoints > 0 && (
+                  <span className="text-yellow-300">
+                    {" "}
+                    · {roundPoints} pts at stake
+                  </span>
+                )}
+              </p>
+              <div className="flex items-center gap-3">
+                <Button
+                  size="sm"
+                  className="bg-strike-red hover:bg-strike-red/80 border-0 game-board-font"
                   onClick={handleAddStrike}
+                  disabled={isLoading}
                 >
-                  {game && i < game.strikes && (
-                    <XIcon className="text-red-600 w-8 h-8" strokeWidth={5} />
-                  )}
-                </div>
-              ))}
+                  <XIcon className="w-4 h-4 mr-1" /> FAILED STEAL
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={handleCancelSteal}
+                  disabled={isLoading}
+                  className="game-board-font"
+                >
+                  CANCEL
+                </Button>
+              </div>
+              {/* Strike dots — shows the stealing team's current count (starts at 0) */}
+              <div className="flex items-center gap-2">
+                {[...Array(3)].map((_, i) => (
+                  <div
+                    key={i}
+                    className="w-8 h-8 rounded-full border-4 border-red-500 flex items-center justify-center"
+                  >
+                    {game && i < game.strikes && (
+                      <XIcon className="text-red-500 w-6 h-6" strokeWidth={5} />
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
+          ) : (
+            <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center sm:gap-4">
+              <div className="flex items-center gap-2 order-1 sm:order-2">
+                <span className="game-board-font text-primary-foreground mr-2">
+                  STRIKES
+                </span>
+                {[...Array(3)].map((_, i) => (
+                  <div
+                    key={i}
+                    className="w-10 h-10 rounded-full border-4 border-gold-border flex items-center justify-center cursor-pointer"
+                    onClick={handleAddStrike}
+                  >
+                    {game && i < game.strikes && (
+                      <XIcon className="text-red-600 w-8 h-8" strokeWidth={5} />
+                    )}
+                  </div>
+                ))}
+              </div>
 
-            <div className="flex items-center gap-4 order-2 sm:contents">
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={handleUndoStrike}
-                disabled={!game || game.strikes === 0}
-                className="sm:order-1"
-              >
-                <Undo className="w-4 h-4" /> UNDO
-              </Button>
-              <Button
-                size="sm"
-                className="bg-strike-red hover:bg-strike-red/80 border-0 sm:order-3"
-                onClick={handleAddStrike}
-                disabled={!game || game.strikes >= 3}
-              >
-                + STRIKE
-              </Button>
+              <div className="flex items-center gap-4 order-2 sm:contents">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={handleUndoStrike}
+                  disabled={!game || game.strikes === 0}
+                  className="sm:order-1"
+                >
+                  <Undo className="w-4 h-4" /> UNDO
+                </Button>
+                <Button
+                  size="sm"
+                  className="bg-strike-red hover:bg-strike-red/80 border-0 sm:order-3"
+                  onClick={handleAddStrike}
+                  disabled={!game || game.strikes >= 3}
+                >
+                  + STRIKE
+                </Button>
+              </div>
             </div>
-          </div>
+          )}
         </Card>
       </div>
     </div>

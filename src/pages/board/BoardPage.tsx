@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, memo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Card } from "@/components/ui/card";
-import { XIcon } from "lucide-react";
+import { XIcon, Volume2, VolumeX } from "lucide-react";
 import { useGameStore } from "@/store/gameStore";
 import { useGameSubscription } from "@/realtime/subscriptions";
 import { useGameEvents } from "@/realtime/useGameEvents";
@@ -32,12 +32,21 @@ export default function BoardPage() {
   const isConnected = useGameStore((s) => s.isConnected);
 
   const [isRevealQuestion, setIsRevealQuestion] = useState(false);
+  const [soundOn, setSoundOn] = useState(false);
   const [flashTeam, setFlashTeam] = useState<"team_a" | "team_b" | null>(null);
   const [flashStrikeIndex, setFlashStrikeIndex] = useState<number | null>(null);
-  const [selectedTeam, setSelectedTeam] = useState<"team_a" | "team_b" | null>(null);
+  const [selectedTeam, setSelectedTeam] = useState<"team_a" | "team_b" | null>(
+    null,
+  );
   const [connectionLost, setConnectionLost] = useState(false);
   const [showStrikeOverlay, setShowStrikeOverlay] = useState(false);
-  const connectionLostTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [stealMode, setStealMode] = useState(false);
+  const [stealingTeam, setStealingTeam] = useState<"team_a" | "team_b" | null>(
+    null,
+  );
+  const connectionLostTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   const strikeOverlayRef = useRef<HTMLDivElement>(null);
   const prevStrikes = useRef<number | undefined>();
 
@@ -52,6 +61,11 @@ export default function BoardPage() {
   // refs ensure animateRoundIn only runs after animateRoundOut has fired.
   const roundOutCalled = useRef(false);
   const roundInPending = useRef(false);
+
+  const handleSoundToggle = () => {
+    soundManager.toggleSound();
+    setSoundOn(soundManager.isSoundOn());
+  };
 
   useGameSubscription(sessionCode);
   const { hostOnline } = usePresence(sessionCode, "board");
@@ -80,9 +94,20 @@ export default function BoardPage() {
     },
     onStrikeRemoved: () => setFlashStrikeIndex(null),
     onStrikesReset: () => setFlashStrikeIndex(null),
+    onStealModeActivated: ({ stealingTeam: team }) => {
+      setStealMode(true);
+      setStealingTeam(team);
+      soundManager.playStrike();
+    },
+    onStealModeEnded: () => {
+      setStealMode(false);
+      setStealingTeam(null);
+    },
     onRoundChanged: () => {
       setIsRevealQuestion(false);
       setFlashStrikeIndex(null);
+      setStealMode(false);
+      setStealingTeam(null);
       roundOutCalled.current = true;
       if (boardRef.current) {
         const tween = animateRoundOut(boardRef.current);
@@ -120,7 +145,7 @@ export default function BoardPage() {
     if (!isConnected && game) {
       connectionLostTimerRef.current = setTimeout(
         () => setConnectionLost(true),
-        15000
+        15000,
       );
     } else {
       setConnectionLost(false);
@@ -294,6 +319,19 @@ export default function BoardPage() {
 
   return (
     <div className="min-h-screen bg-gradient-bg sparkle-bg p-2 md:p-4">
+      {/* Floating sound toggle — must be clicked once to unlock browser audio autoplay */}
+      <button
+        onClick={handleSoundToggle}
+        className="fixed bottom-4 right-4 z-40 bg-gradient-board border-gold-border border-2 rounded-full w-12 h-12 flex items-center justify-center shadow-board hover:scale-110 transition-transform"
+        title={soundOn ? "Mute sound" : "Enable sound"}
+      >
+        {soundOn ? (
+          <Volume2 className="text-yellow-300 w-6 h-6" />
+        ) : (
+          <VolumeX className="text-gray-400 w-6 h-6" />
+        )}
+      </button>
+
       {showStrikeOverlay && (
         <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none bg-black/40">
           <div ref={strikeOverlayRef}>
@@ -337,7 +375,9 @@ export default function BoardPage() {
               <span
                 className={`inline-block w-2 h-2 rounded-full mr-1 ${isConnected ? "bg-green-400" : "bg-yellow-400"}`}
               />
-              <span className={isConnected ? "text-green-400" : "text-yellow-400"}>
+              <span
+                className={isConnected ? "text-green-400" : "text-yellow-400"}
+              >
                 {isConnected ? "Connected" : "Reconnecting..."}
               </span>
             </span>
@@ -361,6 +401,17 @@ export default function BoardPage() {
           </Card>
         </div>
 
+        {/* Steal mode banner */}
+        {stealMode && stealingTeam && game && (
+          <div className="flex justify-center">
+            <div className="bg-red-800/90 border-4 border-red-500 rounded-2xl px-8 py-3 shadow-board animate-pulse">
+              <p className="game-board-font text-white text-2xl md:text-3xl text-center tracking-[0.25em] uppercase">
+                STEAL MODE
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Answer grid + team scores */}
         <div className="flex flex-col items-center gap-4">
           <div className="flex justify-between items-center gap-3">
@@ -371,6 +422,7 @@ export default function BoardPage() {
                 score={game.team_a_score}
                 isFlashing={flashTeam === "team_a"}
                 isSelected={selectedTeam === "team_a"}
+                isStealing={stealMode && stealingTeam === "team_a"}
               />
             </div>
 
@@ -399,6 +451,7 @@ export default function BoardPage() {
                 score={game.team_b_score}
                 isFlashing={flashTeam === "team_b"}
                 isSelected={selectedTeam === "team_b"}
+                isStealing={stealMode && stealingTeam === "team_b"}
               />
             </div>
           </div>
@@ -411,6 +464,7 @@ export default function BoardPage() {
                 score={game.team_a_score}
                 isFlashing={flashTeam === "team_a"}
                 isSelected={selectedTeam === "team_a"}
+                isStealing={stealMode && stealingTeam === "team_a"}
               />
             </div>
 
@@ -437,6 +491,7 @@ export default function BoardPage() {
                 score={game.team_b_score}
                 isFlashing={flashTeam === "team_b"}
                 isSelected={selectedTeam === "team_b"}
+                isStealing={stealMode && stealingTeam === "team_b"}
               />
             </div>
           </div>
@@ -522,11 +577,13 @@ const TeamCard = memo(function TeamCard({
   score,
   isFlashing = false,
   isSelected = false,
+  isStealing = false,
 }: {
   name: string;
   score: number;
   isFlashing?: boolean;
   isSelected?: boolean;
+  isStealing?: boolean;
 }) {
   const scoreRef = useRef<HTMLParagraphElement>(null);
   // null sentinel means "first render" — skip animation on initial mount
@@ -545,8 +602,12 @@ const TeamCard = memo(function TeamCard({
 
   return (
     <Card
-      className={`border-gold-border text-primary-foreground border-4 p-2 md:p-6 shadow-gold transition-all duration-300 ${
-        isSelected ? "bg-gradient-gold" : "bg-gradient-board"
+      className={`text-primary-foreground border-4 p-2 md:p-6 shadow-gold transition-all  ${
+        isStealing
+          ? "bg-red-900/80 border-red-500 ring-4 ring-red-500 animate-pulse"
+          : isSelected
+            ? "bg-gradient-gold border-gold-border"
+            : "bg-gradient-board border-gold-border"
       } ${isFlashing ? "ring-4 ring-yellow-300 scale-105" : ""}`}
     >
       <div className="flex flex-col items-center text-center">

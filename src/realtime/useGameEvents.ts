@@ -11,6 +11,8 @@ import {
   type GameStartedPayload,
   type TeamSelectedPayload,
   type QuestionRevealedPayload,
+  type StealModeActivatedPayload,
+  type StealModeEndedPayload,
 } from "@/realtime/events";
 
 // Subscribes to lastEvent in the game store and dispatches to typed handlers.
@@ -62,6 +64,12 @@ export function useGameEvents(handlers: GameEventHandlers) {
         break;
       case GameEvents.QUESTION_REVEALED:
         h.onQuestionRevealed?.(p as unknown as QuestionRevealedPayload);
+        break;
+      case GameEvents.STEAL_MODE_ACTIVATED:
+        h.onStealModeActivated?.(p as unknown as StealModeActivatedPayload);
+        break;
+      case GameEvents.STEAL_MODE_ENDED:
+        h.onStealModeEnded?.(p as unknown as StealModeEndedPayload);
         break;
     }
   }, [lastEvent]);

@@ -111,6 +111,33 @@ export async function selectTeam(
   return !error;
 }
 
+export async function activateStealMode(
+  gameId: number,
+  stealingTeam: "team_a" | "team_b",
+  originalTeam: "team_a" | "team_b",
+  roundPoints: number
+): Promise<boolean> {
+  const { error } = await supabase.from("game_events").insert({
+    game_id: gameId,
+    type: GameEvents.STEAL_MODE_ACTIVATED,
+    payload: { stealingTeam, originalTeam, roundPoints },
+  });
+  return !error;
+}
+
+export async function endStealMode(
+  gameId: number,
+  success: boolean,
+  stealingTeam: "team_a" | "team_b"
+): Promise<boolean> {
+  const { error } = await supabase.from("game_events").insert({
+    game_id: gameId,
+    type: GameEvents.STEAL_MODE_ENDED,
+    payload: { success, stealingTeam },
+  });
+  return !error;
+}
+
 export async function fetchGameBySessionCode(
   sessionCode: string
 ): Promise<Game | null> {
