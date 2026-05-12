@@ -80,6 +80,15 @@ export default function HostGame() {
   );
   const [roundPoints, setRoundPoints] = useState(0);
 
+  // Face-off state
+  const [faceOffMode, setFaceOffMode] = useState(false);
+  const [faceOffFirstTeam, setFaceOffFirstTeam] = useState<
+    "team_a" | "team_b" | null
+  >(null);
+  const [faceOffRevealedAnswers, setFaceOffRevealedAnswers] = useState<
+    { team: "team_a" | "team_b"; answer: LocalAnswer }[]
+  >([]);
+
   useEffect(() => {
     fetchQuestionsData().then((qs) => {
       const sorted = [...qs].sort((a, b) => a.id - b.id);
@@ -148,6 +157,9 @@ export default function HostGame() {
     setCurrentIndex(0);
     setScoreA(0);
     setScoreB(0);
+    setFaceOffMode(true);
+    setFaceOffFirstTeam(null);
+    setFaceOffRevealedAnswers([]);
     setPhase("active");
     setIsCreating(false);
   };
@@ -155,6 +167,55 @@ export default function HostGame() {
   const handleRevealAnswer = async (answer: LocalAnswer) => {
     if (!game || answer.revealed) return;
     setIsLoading(true);
+
+    if (faceOffMode && faceOffFirstTeam && faceOffRevealedAnswers.length < 2) {
+      const secondTeam: "team_a" | "team_b" =
+        faceOffFirstTeam === "team_a" ? "team_b" : "team_a";
+      const currentFaceOffTeam =
+        faceOffRevealedAnswers.length === 0 ? faceOffFirstTeam : secondTeam;
+
+      const ok = await revealAnswer(
+        game.id,
+        answer.id,
+        answer.points,
+        currentQuestion!.dbId!,
+      );
+      if (ok) {
+        setAnswers((prev) =>
+          prev.map((a) => (a.id === answer.id ? { ...a, revealed: true } : a)),
+        );
+        const newRevealed = [
+          ...faceOffRevealedAnswers,
+          { team: currentFaceOffTeam, answer },
+        ];
+        setFaceOffRevealedAnswers(newRevealed);
+
+        if (newRevealed.length === 2) {
+          const aEntry = newRevealed.find((r) => r.team === "team_a")!;
+          const bEntry = newRevealed.find((r) => r.team === "team_b")!;
+          const winner: "team_a" | "team_b" =
+            aEntry.answer.points >= bEntry.answer.points ? "team_a" : "team_b";
+          const totalPoints = aEntry.answer.points + bEntry.answer.points;
+          const currentScore = winner === "team_a" ? scoreA : scoreB;
+          const newScore = currentScore + totalPoints;
+          if (winner === "team_a") {
+            setScoreA(newScore);
+            setGame((g) => g && { ...g, team_a_score: newScore });
+          } else {
+            setScoreB(newScore);
+            setGame((g) => g && { ...g, team_b_score: newScore });
+          }
+          await awardPoints(game.id, winner, currentScore, totalPoints);
+          await selectTeam(game.id, winner);
+          setSelectedTeam(winner);
+          setFaceOffMode(false);
+          setFaceOffFirstTeam(null);
+          setFaceOffRevealedAnswers([]);
+        }
+      }
+      setIsLoading(false);
+      return;
+    }
 
     const ok = await revealAnswer(
       game.id,
@@ -325,6 +386,9 @@ export default function HostGame() {
     setStealingTeam(null);
     setOriginalTeam(null);
     setRoundPoints(0);
+    setFaceOffMode(true);
+    setFaceOffFirstTeam(null);
+    setFaceOffRevealedAnswers([]);
     setIsLoading(false);
   };
 
@@ -352,6 +416,9 @@ export default function HostGame() {
     setStealingTeam(null);
     setOriginalTeam(null);
     setRoundPoints(0);
+    setFaceOffMode(true);
+    setFaceOffFirstTeam(null);
+    setFaceOffRevealedAnswers([]);
     setIsLoading(false);
   };
 
@@ -382,6 +449,9 @@ export default function HostGame() {
     setStealingTeam(null);
     setOriginalTeam(null);
     setRoundPoints(0);
+    setFaceOffMode(true);
+    setFaceOffFirstTeam(null);
+    setFaceOffRevealedAnswers([]);
     setIsLoading(false);
   };
 
@@ -421,6 +491,20 @@ export default function HostGame() {
     setStealingTeam(null);
     setOriginalTeam(null);
     setRoundPoints(0);
+    setFaceOffMode(false);
+    setFaceOffFirstTeam(null);
+    setFaceOffRevealedAnswers([]);
+  };
+
+  const handleFaceOffBuzz = (team: "team_a" | "team_b") => {
+    if (!faceOffMode || faceOffFirstTeam) return;
+    setFaceOffFirstTeam(team);
+  };
+
+  const handleSkipFaceOff = () => {
+    setFaceOffMode(false);
+    setFaceOffFirstTeam(null);
+    setFaceOffRevealedAnswers([]);
   };
 
   const { boardCount } = usePresence(game?.session_code ?? null, "host");
@@ -555,6 +639,15 @@ export default function HostGame() {
     );
   }
 
+  const faceOffActiveTeam: "team_a" | "team_b" | null =
+    faceOffMode && faceOffFirstTeam && faceOffRevealedAnswers.length < 2
+      ? faceOffRevealedAnswers.length === 0
+        ? faceOffFirstTeam
+        : faceOffFirstTeam === "team_a"
+          ? "team_b"
+          : "team_a"
+      : null;
+
   return (
     <div className="min-h-screen bg-gradient-bg sparkle-bg p-3">
       <div className="max-w-4xl mx-auto space-y-3">
@@ -608,16 +701,38 @@ export default function HostGame() {
           <Card
             className={cn(
               "flex flex-col items-center border-4 p-3 shadow-gold cursor-pointer transition-all duration-200 select-none",
-              stealMode && originalTeam === "team_a"
-                ? "bg-red-950 border-red-500"
-                : stealMode && stealingTeam === "team_a"
-                  ? "bg-gradient-gold border-yellow-300"
-                  : selectedTeam === "team_a"
-                    ? "bg-gradient-gold border-gold-border"
-                    : "bg-gradient-board border-gold-border",
+              faceOffMode && faceOffFirstTeam === "team_a"
+                ? "bg-blue-950 border-blue-200"
+                : faceOffMode
+                  ? "bg-gradient-board border-blue-600"
+                  : stealMode && originalTeam === "team_a"
+                    ? "bg-red-950 border-red-500"
+                    : stealMode && stealingTeam === "team_a"
+                      ? "bg-gradient-gold border-yellow-300"
+                      : selectedTeam === "team_a"
+                        ? "bg-gradient-gold border-gold-border"
+                        : "bg-gradient-board border-gold-border",
             )}
-            onClick={() => handleSelectTeam("team_a")}
+            onClick={() =>
+              faceOffMode && !faceOffFirstTeam
+                ? handleFaceOffBuzz("team_a")
+                : !faceOffMode
+                  ? handleSelectTeam("team_a")
+                  : undefined
+            }
           >
+            {faceOffMode && !faceOffFirstTeam && (
+              <p className="game-board-font text-blue-400 text-xs tracking-widest mb-1 animate-pulse">
+                TAP TO BUZZ
+              </p>
+            )}
+            {faceOffMode &&
+              faceOffFirstTeam === "team_a" &&
+              !faceOffRevealedAnswers.some((r) => r.team === "team_a") && (
+                <p className="game-board-font text-blue-300 text-xs tracking-widest mb-1">
+                  BUZZED IN ✓
+                </p>
+              )}
             {stealMode && originalTeam === "team_a" && (
               <p className="game-board-font text-red-400 text-xs tracking-widest mb-1">
                 STEALING FROM
@@ -635,20 +750,58 @@ export default function HostGame() {
               onClick={(e) => e.stopPropagation()}
               className="game-board-font text-3xl text-center w-1/3 min-w-24 bg-transparent text-primary-foreground border-2 border-gold-border rounded-lg"
             />
+            {faceOffMode &&
+              faceOffRevealedAnswers.some((r) => r.team === "team_a") && (
+                <p className="game-board-font text-yellow-300 text-xs text-center mt-1 leading-tight">
+                  {
+                    faceOffRevealedAnswers.find((r) => r.team === "team_a")
+                      ?.answer.text
+                  }{" "}
+                  <span className="text-green-400">
+                    {
+                      faceOffRevealedAnswers.find((r) => r.team === "team_a")
+                        ?.answer.points
+                    }
+                    pts
+                  </span>
+                </p>
+              )}
           </Card>
           <Card
             className={cn(
               "flex flex-col items-center border-4 p-3 shadow-gold cursor-pointer transition-all duration-200 select-none",
-              stealMode && originalTeam === "team_b"
-                ? "bg-red-950 border-red-500"
-                : stealMode && stealingTeam === "team_b"
-                  ? "bg-gradient-gold border-yellow-300"
-                  : selectedTeam === "team_b"
-                    ? "bg-gradient-gold border-gold-border"
-                    : "bg-gradient-board border-gold-border",
+              faceOffMode && faceOffFirstTeam === "team_b"
+                ? "bg-blue-950 border-blue-200"
+                : faceOffMode
+                  ? "bg-gradient-board border-blue-600"
+                  : stealMode && originalTeam === "team_b"
+                    ? "bg-red-950 border-red-500"
+                    : stealMode && stealingTeam === "team_b"
+                      ? "bg-gradient-gold border-yellow-300"
+                      : selectedTeam === "team_b"
+                        ? "bg-gradient-gold border-gold-border"
+                        : "bg-gradient-board border-gold-border",
             )}
-            onClick={() => handleSelectTeam("team_b")}
+            onClick={() =>
+              faceOffMode && !faceOffFirstTeam
+                ? handleFaceOffBuzz("team_b")
+                : !faceOffMode
+                  ? handleSelectTeam("team_b")
+                  : undefined
+            }
           >
+            {faceOffMode && !faceOffFirstTeam && (
+              <p className="game-board-font text-blue-400 text-xs tracking-widest mb-1 animate-pulse">
+                TAP TO BUZZ
+              </p>
+            )}
+            {faceOffMode &&
+              faceOffFirstTeam === "team_b" &&
+              !faceOffRevealedAnswers.some((r) => r.team === "team_b") && (
+                <p className="game-board-font text-blue-300 text-xs tracking-widest mb-1">
+                  BUZZED IN ✓
+                </p>
+              )}
             {stealMode && originalTeam === "team_b" && (
               <p className="game-board-font text-red-400 text-xs tracking-widest mb-1">
                 STEALING FROM
@@ -666,6 +819,22 @@ export default function HostGame() {
               onClick={(e) => e.stopPropagation()}
               className="game-board-font text-3xl text-center w-1/3 min-w-24 bg-transparent text-primary-foreground border-2 border-gold-border rounded-lg"
             />
+            {faceOffMode &&
+              faceOffRevealedAnswers.some((r) => r.team === "team_b") && (
+                <p className="game-board-font text-yellow-300 text-xs text-center mt-1 leading-tight">
+                  {
+                    faceOffRevealedAnswers.find((r) => r.team === "team_b")
+                      ?.answer.text
+                  }{" "}
+                  <span className="text-green-400">
+                    {
+                      faceOffRevealedAnswers.find((r) => r.team === "team_b")
+                        ?.answer.points
+                    }
+                    pts
+                  </span>
+                </p>
+              )}
           </Card>
         </div>
 
@@ -770,9 +939,16 @@ export default function HostGame() {
                       variant="green"
                       className="text-xs h-7 px-3 py-4"
                       onClick={() => handleRevealAnswer(answer)}
-                      disabled={isLoading}
+                      disabled={
+                        isLoading ||
+                        (faceOffMode &&
+                          (!faceOffFirstTeam ||
+                            faceOffRevealedAnswers.length >= 2))
+                      }
                     >
-                      REVEAL
+                      {faceOffActiveTeam
+                        ? `${faceOffActiveTeam === "team_a" ? game?.team_a_name : game?.team_b_name}'S ANS`
+                        : "REVEAL"}
                     </Button>
                   )}
                 </div>
@@ -781,16 +957,50 @@ export default function HostGame() {
           </div>
         </Card>
 
-        {/* Strikes / Steal Mode */}
+        {/* Face-Off / Strikes / Steal Mode */}
         <Card
           className={cn(
             "border-4 p-3",
-            stealMode
-              ? "bg-red-950 border-red-500 shadow-[0_0_20px_rgba(239,68,68,0.4)]"
-              : "bg-gradient-board border-gold-border shadow-gold",
+            faceOffMode
+              ? "bg-blue-950 border-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.3)]"
+              : stealMode
+                ? "bg-red-950 border-red-500 shadow-[0_0_20px_rgba(239,68,68,0.4)]"
+                : "bg-gradient-board border-gold-border shadow-gold",
           )}
         >
-          {stealMode ? (
+          {faceOffMode ? (
+            <div className="flex flex-col items-center gap-3">
+              <p className="game-board-font text-blue-400 text-xl tracking-[0.3em] uppercase">
+                Face-Off
+              </p>
+              {!faceOffFirstTeam ? (
+                <p className="game-board-font text-primary-foreground text-sm text-center">
+                  Tap a team card to buzz in first
+                </p>
+              ) : (
+                <p className="game-board-font text-primary-foreground text-sm text-center">
+                  Reveal{" "}
+                  {faceOffRevealedAnswers.length === 0
+                    ? faceOffFirstTeam === "team_a"
+                      ? game.team_a_name
+                      : game.team_b_name
+                    : faceOffFirstTeam === "team_a"
+                      ? game.team_b_name
+                      : game.team_a_name}
+                  's answer from the board above
+                </p>
+              )}
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={handleSkipFaceOff}
+                disabled={isLoading}
+                className="game-board-font text-xs"
+              >
+                {faceOffFirstTeam ? "CANCEL FACE-OFF" : "SKIP FACE-OFF"}
+              </Button>
+            </div>
+          ) : stealMode ? (
             <div className="flex flex-col items-center gap-3">
               <p className="game-board-font text-red-400 text-xl tracking-[0.3em] uppercase">
                 Steal Mode
